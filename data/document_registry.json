@@ -1,0 +1,30 @@
+[
+  {
+    "document_id": "DOC-GEN-001",
+    "file_name": "employee_handbook.txt",
+    "title": "Employee Handbook",
+    "department": "general",
+    "allowed_roles": ["employee", "hr", "finance", "executive"]
+  },
+  {
+    "document_id": "DOC-HR-001",
+    "file_name": "hr_policy.txt",
+    "title": "Human Resources Policy",
+    "department": "hr",
+    "allowed_roles": ["hr", "executive"]
+  },
+  {
+    "document_id": "DOC-FIN-001",
+    "file_name": "finance_report.txt",
+    "title": "Finance Report 2026",
+    "department": "finance",
+    "allowed_roles": ["finance", "executive"]
+  },
+  {
+    "document_id": "DOC-EXE-001",
+    "file_name": "executive_strategy.txt",
+    "title": "Executive Strategy",
+    "department": "executive",
+    "allowed_roles": ["executive"]
+  }
+]
