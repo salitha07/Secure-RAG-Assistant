@@ -26,13 +26,21 @@ def search_authorized_chunks(
     query_embedding,
     user_role,
     limit=3,
+    score_threshold=0.60,
 ):
     role = normalize_role(user_role)
 
     if limit <= 0:
         raise ValueError("Search limit must be greater than zero.")
 
+    if (
+        score_threshold is not None
+        and not -1.0 <= score_threshold <= 1.0
+    ):
+        raise ValueError("Score threshold must be between -1 and 1.")
+
     client = create_qdrant_client()
+
 
     try:
         response = client.query_points(
@@ -49,6 +57,7 @@ def search_authorized_chunks(
                 ]
             ),
             limit=limit,
+            score_threshold=score_threshold,
             with_payload=True,
             with_vectors=False,
         )
@@ -75,6 +84,7 @@ def retrieve_authorized_chunks(
     question,
     user_role,
     limit=3,
+    score_threshold=0.60,
 ):
     question_embedding = embed_query(question)
 
@@ -82,6 +92,7 @@ def retrieve_authorized_chunks(
         query_embedding=question_embedding,
         user_role=user_role,
         limit=limit,
+        score_threshold=score_threshold,
     )
 
 
