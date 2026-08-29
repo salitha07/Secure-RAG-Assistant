@@ -58,6 +58,29 @@ def main():
     print(f"Vector dimensions: {len(embedding)}")
     print(f"First five values: {embedding[:5]}")
 
+def embed_query(question):
+    if not question.strip():
+        raise ValueError("Question cannot be empty.")
+
+    prepared_question = (
+        f"task: question answering | query: {question}"
+    )
+
+    client = create_client()
+
+    response = client.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=prepared_question,
+        config=types.EmbedContentConfig(
+            output_dimensionality=EMBEDDING_DIMENSION
+        ),
+    )
+
+    if not response.embeddings:
+        raise RuntimeError("Gemini did not return an embedding.")
+
+    return response.embeddings[0].values
+
 
 if __name__ == "__main__":
     main()
