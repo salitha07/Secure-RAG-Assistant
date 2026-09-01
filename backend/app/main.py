@@ -1,6 +1,23 @@
-def main():
-    print("Secure RAG Assistant is ready!")
+from fastapi import FastAPI
+
+from backend.app.api.routes.rag import router as rag_router
 
 
-if __name__ == "__main__":
-    main()
+app = FastAPI(
+    title="Secure RAG Assistant API",
+    description=(
+        "Role-authorized internal company "
+        "knowledge assistant."
+    ),
+    version="0.1.0",
+)
+
+app.include_router(rag_router)
+
+
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {
+        "status": "ok",
+        "service": "Secure RAG Assistant",
+    }
