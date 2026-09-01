@@ -1,14 +1,17 @@
-from pydantic import BaseModel, Field
-
-from backend.app.models.role import UserRole
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+)
 
 
 class AskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(
         min_length=1,
         max_length=1000,
     )
-    role: UserRole
 
 
 class CitationResponse(BaseModel):

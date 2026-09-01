@@ -1,12 +1,27 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 
-from backend.app.schemas.rag import AskRequest, AskResponse
-from backend.app.services.rag_service import answer_question
+from backend.app.api.dependencies.auth import (
+    get_current_user,
+)
+from backend.app.models.user import User
+from backend.app.schemas.rag import (
+    AskRequest,
+    AskResponse,
+)
+from backend.app.services.rag_service import (
+    answer_question,
+)
 
 
 logger = logging.getLogger(__name__)
+
 
 router = APIRouter(
     prefix="/api/v1",
@@ -14,15 +29,19 @@ router = APIRouter(
 )
 
 
-@router.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest):
+@router.post(
+    "/ask",
+    response_model=AskResponse,
+)
+def ask(
+    request: AskRequest,
+    current_user: User = Depends(get_current_user),
+):
     try:
-        result = answer_question(
+        return answer_question(
             question=request.question,
-            user_role=request.role,
+            user_role=current_user.role,
         )
-
-        return result
 
     except ValueError as error:
         raise HTTPException(
@@ -35,5 +54,7 @@ def ask(request: AskRequest):
 
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="RAG service is temporarily unavailable.",
+            detail=(
+                "RAG service is temporarily unavailable."
+            ),
         ) from error

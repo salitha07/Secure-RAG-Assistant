@@ -5,3 +5,5 @@ httpx==0.28.1
 sqlmodel==0.0.39
 psycopg[binary]==3.3.5
 pwdlib[argon2]
+email-validator
+PyJWT
