@@ -13,6 +13,21 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
+def fake_audit_writer(monkeypatch):
+    audit_calls = []
+
+    def fake_record_rag_audit(**kwargs):
+        audit_calls.append(kwargs)
+
+    monkeypatch.setattr(
+        "backend.app.api.routes.rag.record_rag_audit",
+        fake_record_rag_audit,
+    )
+
+    return audit_calls
+
+
+@pytest.fixture(autouse=True)
 def override_authenticated_user():
     def fake_current_user():
         return User(
@@ -45,6 +60,7 @@ def test_health_endpoint():
 
 def test_ask_uses_authenticated_database_role(
     monkeypatch,
+    fake_audit_writer,
 ):
     captured_request = {}
 
@@ -83,10 +99,26 @@ def test_ask_uses_authenticated_database_role(
     )
 
     assert response.status_code == 200
+
     assert captured_request == {
         "question": "What is Project Aurora?",
         "role": "executive",
     }
+
+    assert len(fake_audit_writer) == 1
+
+    audit = fake_audit_writer[0]
+
+    assert audit["user_id"] == 1
+    assert audit["role_used"] == "executive"
+    assert audit["question"] == (
+        "What is Project Aurora?"
+    )
+    assert audit["outcome"] == "answered"
+    assert audit["source_document_ids"] == [
+        "DOC-EXE-001"
+    ]
+    assert audit["duration_ms"] >= 0
 
 
 def test_client_cannot_inject_role():
@@ -114,6 +146,7 @@ def test_empty_question_returns_validation_error():
 
 def test_service_failure_returns_safe_error(
     monkeypatch,
+    fake_audit_writer,
 ):
     def fake_failure(question, user_role):
         raise RuntimeError(
@@ -138,6 +171,14 @@ def test_service_failure_returns_safe_error(
             "RAG service is temporarily unavailable."
         )
     }
+
+    assert len(fake_audit_writer) == 1
+    assert fake_audit_writer[0]["outcome"] == "error"
+    assert (
+        fake_audit_writer[0]["source_document_ids"]
+        == []
+    )
+    assert fake_audit_writer[0]["duration_ms"] >= 0
 
 
 def test_missing_token_is_rejected():

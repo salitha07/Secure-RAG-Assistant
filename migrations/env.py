@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlmodel import SQLModel
+from backend.app.models.audit_log import RagAuditLog  # noqa: F401
 
 from backend.app.database import engine
 from backend.app.models.user import User  # noqa: F401
