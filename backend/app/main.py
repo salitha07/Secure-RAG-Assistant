@@ -11,6 +11,9 @@ from backend.app.api.routes.rag import (
     router as rag_router,
 )
 
+from backend.app.api.routes.audit import (
+    router as audit_router,
+)
 
 load_dotenv()
 
@@ -56,6 +59,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(rag_router)
+app.include_router(audit_router)
 
 
 @app.get("/health", tags=["Health"])

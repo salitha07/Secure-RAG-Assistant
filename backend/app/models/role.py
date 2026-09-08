@@ -6,3 +6,4 @@ class UserRole(str, Enum):
     HR = "hr"
     FINANCE = "finance"
     EXECUTIVE = "executive"
+    ADMIN = "admin"

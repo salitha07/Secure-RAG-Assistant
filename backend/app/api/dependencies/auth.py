@@ -10,6 +10,7 @@ from fastapi.security import (
 from sqlmodel import Session
 
 from backend.app.database import get_session
+from backend.app.models.role import UserRole
 from backend.app.models.user import User
 from backend.app.security.tokens import (
     InvalidAccessTokenError,
@@ -61,3 +62,24 @@ def get_current_user(
         raise authentication_error()
 
     return user
+AUDIT_VIEW_ROLES = frozenset(
+    {
+        UserRole.EXECUTIVE,
+        UserRole.ADMIN,
+    }
+)
+
+
+def require_audit_viewer(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role not in AUDIT_VIEW_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view audit logs."
+            ),
+        )
+
+    return current_user
