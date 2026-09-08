@@ -4,6 +4,7 @@ import {
   Routes,
 } from "react-router-dom";
 
+import Audit from "./pages/Audit";
 import Chat from "./pages/Chat";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -59,6 +60,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Chat />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/audit"
+        element={
+          <ProtectedRoute>
+            <Audit />
           </ProtectedRoute>
         }
       />
