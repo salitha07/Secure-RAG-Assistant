@@ -1,5 +1,6 @@
 import logging
 from time import perf_counter
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -7,12 +8,17 @@ from fastapi import (
     HTTPException,
     status,
 )
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from backend.app.api.dependencies.auth import (
     get_current_user,
 )
 from backend.app.database import get_session
+from backend.app.models.chat_message import ChatMessage
+from backend.app.models.conversation import (
+    Conversation,
+    utc_now,
+)
 from backend.app.models.user import User
 from backend.app.schemas.rag import (
     AskRequest,
@@ -41,6 +47,40 @@ def get_duration_ms(started_at: float) -> int:
         int((perf_counter() - started_at) * 1000),
         0,
     )
+
+
+def create_conversation_title(
+    question: str,
+    max_length: int = 60,
+) -> str:
+    title = " ".join(question.strip().split())
+
+    if len(title) <= max_length:
+        return title
+
+    return f"{title[:max_length - 3].rstrip()}..."
+
+
+def get_owned_conversation(
+    session: Session,
+    *,
+    conversation_id: UUID,
+    user_id: int,
+) -> Conversation:
+    conversation = session.exec(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id,
+        )
+    ).first()
+
+    if conversation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+
+    return conversation
 
 
 def save_audit_or_fail(
@@ -99,6 +139,21 @@ def ask(
 ):
     started_at = perf_counter()
 
+    if current_user.id is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authenticated user is invalid.",
+        )
+
+    conversation = None
+
+    if request.conversation_id is not None:
+        conversation = get_owned_conversation(
+            session,
+            conversation_id=request.conversation_id,
+            user_id=current_user.id,
+        )
+
     try:
         result = answer_question(
             question=request.question,
@@ -153,6 +208,38 @@ def ask(
         else "refused"
     )
 
+    if conversation is None:
+        conversation = Conversation(
+            user_id=current_user.id,
+            title=create_conversation_title(
+                request.question
+            ),
+        )
+
+        session.add(conversation)
+
+    conversation.updated_at = utc_now()
+
+    user_message = ChatMessage(
+        conversation_id=conversation.id,
+        role="user",
+        content=request.question.strip(),
+        citations=[],
+    )
+
+    assistant_message = ChatMessage(
+        conversation_id=conversation.id,
+        role="assistant",
+        content=result["answer"],
+        citations=citations,
+    )
+
+    session.add(conversation)
+    session.add(user_message)
+    session.add(assistant_message)
+
+    # record_rag_audit commits the audit log,
+    # conversation and both chat messages together.
     save_audit_or_fail(
         session=session,
         current_user=current_user,
@@ -162,4 +249,8 @@ def ask(
         duration_ms=get_duration_ms(started_at),
     )
 
-    return result
+    return {
+        "conversation_id": conversation.id,
+        "answer": result["answer"],
+        "citations": citations,
+    }

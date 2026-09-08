@@ -14,7 +14,9 @@ from backend.app.api.routes.rag import (
 from backend.app.api.routes.audit import (
     router as audit_router,
 )
-
+from backend.app.api.routes.conversations import (
+    router as conversations_router,
+)
 load_dotenv()
 
 
@@ -60,7 +62,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(rag_router)
 app.include_router(audit_router)
-
+app.include_router(conversations_router)
 
 @app.get("/health", tags=["Health"])
 def health_check():

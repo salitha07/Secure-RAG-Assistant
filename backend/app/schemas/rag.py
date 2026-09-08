@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -13,6 +15,8 @@ class AskRequest(BaseModel):
         max_length=1000,
     )
 
+    conversation_id: UUID | None = None
+
 
 class CitationResponse(BaseModel):
     source_number: int
@@ -23,5 +27,6 @@ class CitationResponse(BaseModel):
 
 
 class AskResponse(BaseModel):
+    conversation_id: UUID
     answer: str
     citations: list[CitationResponse]

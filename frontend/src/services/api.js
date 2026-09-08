@@ -147,12 +147,80 @@ export function getCurrentUser() {
 }
 
 
-export function askQuestion(question) {
+export function askQuestion(
+  question,
+  conversationId = null,
+) {
+  const body = {
+    question,
+  };
+
+  if (conversationId) {
+    body.conversation_id = conversationId;
+  }
+
   return apiRequest("/api/v1/ask", {
     method: "POST",
-    body: {
-      question,
-    },
+    body,
     requiresAuth: true,
   });
+}
+
+
+export function getConversations({
+  limit = 50,
+  offset = 0,
+} = {}) {
+  const parameters = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest(
+    `/api/v1/conversations?${parameters.toString()}`,
+    {
+      requiresAuth: true,
+    },
+  );
+}
+
+
+export function getConversation(conversationId) {
+  return apiRequest(
+    `/api/v1/conversations/${
+      encodeURIComponent(conversationId)
+    }`,
+    {
+      requiresAuth: true,
+    },
+  );
+}
+
+
+export function deleteConversation(conversationId) {
+  return apiRequest(
+    `/api/v1/conversations/${
+      encodeURIComponent(conversationId)
+    }`,
+    {
+      method: "DELETE",
+      requiresAuth: true,
+    },
+  );
+}
+export function getAuditLogs({
+  limit = 10,
+  offset = 0,
+} = {}) {
+  const parameters = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest(
+    `/api/v1/audit-logs?${parameters.toString()}`,
+    {
+      requiresAuth: true,
+    },
+  );
 }
