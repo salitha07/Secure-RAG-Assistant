@@ -64,7 +64,7 @@ def test_ask_uses_authenticated_database_role(
 ):
     captured_request = {}
 
-    def fake_answer_question(question, user_role):
+    def fake_answer_question(question, user_role,conversation_history=None,):
         captured_request["question"] = question
         captured_request["role"] = user_role.value
 

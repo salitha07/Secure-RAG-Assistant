@@ -5,6 +5,7 @@ from alembic import context
 from sqlmodel import SQLModel
 
 from backend.app.database import engine
+from backend.app.models.document import Document  # noqa: F401
 from backend.app.models.audit_log import RagAuditLog  # noqa: F401
 from backend.app.models.chat_message import ChatMessage  # noqa: F401
 from backend.app.models.conversation import Conversation  # noqa: F401
