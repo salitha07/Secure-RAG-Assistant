@@ -40,6 +40,14 @@ class Conversation(SQLModel, table=True):
         ),
     )
 
+    access_role: str = Field(
+        sa_column=Column(
+            String(20),
+            index=True,
+            nullable=False,
+        ),
+    )
+
     title: str = Field(
         default="New conversation",
         sa_column=Column(

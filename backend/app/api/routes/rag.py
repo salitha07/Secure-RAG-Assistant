@@ -49,16 +49,28 @@ def get_duration_ms(started_at: float) -> int:
     )
 
 
+def get_user_role_value(user: User) -> str:
+    return (
+        user.role.value
+        if hasattr(user.role, "value")
+        else str(user.role)
+    )
+
+
 def create_conversation_title(
     question: str,
     max_length: int = 60,
 ) -> str:
-    title = " ".join(question.strip().split())
+    title = " ".join(
+        question.strip().split()
+    )
 
     if len(title) <= max_length:
         return title
 
-    return f"{title[:max_length - 3].rstrip()}..."
+    return (
+        f"{title[:max_length - 3].rstrip()}..."
+    )
 
 
 def get_owned_conversation(
@@ -66,11 +78,13 @@ def get_owned_conversation(
     *,
     conversation_id: UUID,
     user_id: int,
+    access_role: str,
 ) -> Conversation:
     conversation = session.exec(
         select(Conversation).where(
             Conversation.id == conversation_id,
             Conversation.user_id == user_id,
+            Conversation.access_role == access_role,
         )
     ).first()
 
@@ -81,6 +95,34 @@ def get_owned_conversation(
         )
 
     return conversation
+def load_recent_conversation_history(
+    session: Session,
+    *,
+    conversation_id: UUID,
+    limit: int = 6,
+) -> list[dict[str, str]]:
+    recent_messages = session.exec(
+        select(ChatMessage)
+        .where(
+            ChatMessage.conversation_id
+            == conversation_id
+        )
+        .order_by(
+            ChatMessage.created_at.desc(),
+            ChatMessage.id.desc(),
+        )
+        .limit(limit)
+    ).all()
+
+    return [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in reversed(
+            recent_messages
+        )
+    ]
 
 
 def save_audit_or_fail(
@@ -98,15 +140,15 @@ def save_audit_or_fail(
         )
 
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Request could not be securely audited.",
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Request could not be securely audited."
+            ),
         )
 
-    role_used = (
-        current_user.role.value
-        if hasattr(current_user.role, "value")
-        else str(current_user.role)
-    )
+    role_used = get_user_role_value(current_user)
 
     try:
         record_rag_audit(
@@ -119,12 +161,21 @@ def save_audit_or_fail(
             duration_ms=duration_ms,
         )
 
-    except (AuditLogWriteError, ValueError) as error:
-        logger.exception("RAG audit logging failed.")
+    except (
+        AuditLogWriteError,
+        ValueError,
+    ) as error:
+        logger.exception(
+            "RAG audit logging failed."
+        )
 
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Request could not be securely audited.",
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Request could not be securely audited."
+            ),
         ) from error
 
 
@@ -134,30 +185,53 @@ def save_audit_or_fail(
 )
 def ask(
     request: AskRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     session: Session = Depends(get_session),
 ):
     started_at = perf_counter()
 
     if current_user.id is None:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
             detail="Authenticated user is invalid.",
         )
 
+    current_role = get_user_role_value(
+        current_user
+    )
+
     conversation = None
+    conversation_history = []
 
     if request.conversation_id is not None:
         conversation = get_owned_conversation(
             session,
-            conversation_id=request.conversation_id,
+            conversation_id=(
+                request.conversation_id
+            ),
             user_id=current_user.id,
+            access_role=current_role,
+        )
+
+        conversation_history = (
+            load_recent_conversation_history(
+                session,
+                conversation_id=conversation.id,
+                limit=6,
+            )
         )
 
     try:
         result = answer_question(
             question=request.question,
             user_role=current_user.role,
+            conversation_history=(
+                conversation_history
+            ),
         )
 
     except ValueError as error:
@@ -167,7 +241,9 @@ def ask(
             question=request.question,
             outcome="error",
             source_document_ids=[],
-            duration_ms=get_duration_ms(started_at),
+            duration_ms=get_duration_ms(
+                started_at
+            ),
         )
 
         raise HTTPException(
@@ -176,7 +252,9 @@ def ask(
         ) from error
 
     except Exception as error:
-        logger.exception("RAG request failed.")
+        logger.exception(
+            "RAG request failed."
+        )
 
         save_audit_or_fail(
             session=session,
@@ -184,17 +262,25 @@ def ask(
             question=request.question,
             outcome="error",
             source_document_ids=[],
-            duration_ms=get_duration_ms(started_at),
+            duration_ms=get_duration_ms(
+                started_at
+            ),
         )
 
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
             detail=(
-                "RAG service is temporarily unavailable."
+                "RAG service is temporarily "
+                "unavailable."
             ),
         ) from error
 
-    citations = result.get("citations", [])
+    citations = result.get(
+        "citations",
+        [],
+    )
 
     source_document_ids = [
         citation["document_id"]
@@ -211,6 +297,7 @@ def ask(
     if conversation is None:
         conversation = Conversation(
             user_id=current_user.id,
+            access_role=current_role,
             title=create_conversation_title(
                 request.question
             ),
@@ -238,15 +325,17 @@ def ask(
     session.add(user_message)
     session.add(assistant_message)
 
-    # record_rag_audit commits the audit log,
-    # conversation and both chat messages together.
     save_audit_or_fail(
         session=session,
         current_user=current_user,
         question=request.question,
         outcome=outcome,
-        source_document_ids=source_document_ids,
-        duration_ms=get_duration_ms(started_at),
+        source_document_ids=(
+            source_document_ids
+        ),
+        duration_ms=get_duration_ms(
+            started_at
+        ),
     )
 
     return {

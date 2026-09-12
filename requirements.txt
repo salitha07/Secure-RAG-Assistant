@@ -7,3 +7,5 @@ psycopg[binary]==3.3.5
 pwdlib[argon2]
 email-validator
 PyJWT
+alembic
+pypdf

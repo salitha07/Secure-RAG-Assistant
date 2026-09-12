@@ -30,16 +30,26 @@ router = APIRouter(
 )
 
 
+def get_role_value(user: User) -> str:
+    return (
+        user.role.value
+        if hasattr(user.role, "value")
+        else str(user.role)
+    )
+
+
 def get_owned_conversation(
     session: Session,
     *,
     conversation_id: UUID,
     user_id: int,
+    access_role: str,
 ) -> Conversation:
     conversation = session.exec(
         select(Conversation).where(
             Conversation.id == conversation_id,
             Conversation.user_id == user_id,
+            Conversation.access_role == access_role,
         )
     ).first()
 
@@ -69,17 +79,22 @@ def list_conversations(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    access_role = get_role_value(current_user)
+
+    filters = (
+        Conversation.user_id == current_user.id,
+        Conversation.access_role == access_role,
+    )
+
     total = session.exec(
         select(func.count(Conversation.id)).where(
-            Conversation.user_id == current_user.id
+            *filters
         )
     ).one()
 
     conversations = session.exec(
         select(Conversation)
-        .where(
-            Conversation.user_id == current_user.id
-        )
+        .where(*filters)
         .order_by(
             Conversation.updated_at.desc(),
             Conversation.created_at.desc(),
@@ -107,6 +122,7 @@ def get_conversation(
         session,
         conversation_id=conversation_id,
         user_id=current_user.id,
+        access_role=get_role_value(current_user),
     )
 
     messages = session.exec(
@@ -143,6 +159,7 @@ def delete_conversation(
         session,
         conversation_id=conversation_id,
         user_id=current_user.id,
+        access_role=get_role_value(current_user),
     )
 
     session.delete(conversation)
