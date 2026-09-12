@@ -83,3 +83,24 @@ def require_audit_viewer(
         )
 
     return current_user
+DOCUMENT_MANAGER_ROLES = frozenset(
+    {
+        UserRole.EXECUTIVE,
+        UserRole.ADMIN,
+    }
+)
+
+
+def require_document_manager(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role not in DOCUMENT_MANAGER_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to manage documents."
+            ),
+        )
+
+    return current_user
