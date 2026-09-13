@@ -13,7 +13,6 @@ from backend.app.services.vector_store import (
     ensure_collection,
 )
 
-
 def normalize_allowed_roles(
     allowed_roles: list[str | UserRole],
 ) -> list[str]:
@@ -26,17 +25,25 @@ def normalize_allowed_roles(
 
     for role in allowed_roles:
         if isinstance(role, UserRole):
-            role_value = role.value
+            role_values = [role.value]
         else:
-            role_value = str(role).strip().lower()
+            role_values = str(role).split(",")
 
-        if role_value not in valid_roles:
-            raise ValueError(
-                f"Invalid document role: {role_value}"
-            )
+        for value in role_values:
+            role_value = value.strip().lower()
 
-        if role_value not in normalized_roles:
-            normalized_roles.append(role_value)
+            if not role_value:
+                continue
+
+            if role_value not in valid_roles:
+                raise ValueError(
+                    f"Invalid document role: {role_value}"
+                )
+
+            if role_value not in normalized_roles:
+                normalized_roles.append(
+                    role_value
+                )
 
     if not normalized_roles:
         raise ValueError(
@@ -44,7 +51,6 @@ def normalize_allowed_roles(
         )
 
     return normalized_roles
-
 
 def create_dynamic_chunks(
     *,

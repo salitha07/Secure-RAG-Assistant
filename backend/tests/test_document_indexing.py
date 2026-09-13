@@ -178,3 +178,16 @@ def test_document_index_is_deleted(
 
     assert len(fake_client.delete_calls) == 1
     assert fake_client.closed is True
+def test_comma_separated_roles_are_accepted():
+    result = normalize_allowed_roles(
+        [
+            "employee,hr,admin,executive"
+        ]
+    )
+
+    assert result == [
+        "employee",
+        "hr",
+        "admin",
+        "executive",
+    ]
