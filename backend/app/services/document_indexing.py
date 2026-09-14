@@ -163,12 +163,6 @@ def index_document(
     try:
         ensure_collection(client)
 
-        client.upsert(
-            collection_name=COLLECTION_NAME,
-            points=points,
-            wait=True,
-        )
-
         client.delete(
             collection_name=COLLECTION_NAME,
             points_selector=models.FilterSelector(
@@ -180,17 +174,15 @@ def index_document(
                                 value=document_id_text
                             ),
                         )
-                    ],
-                    must_not=[
-                        models.FieldCondition(
-                            key="index_version",
-                            match=models.MatchValue(
-                                value=index_version
-                            ),
-                        )
-                    ],
+                    ]
                 )
             ),
+            wait=True,
+        )
+
+        client.upsert(
+            collection_name=COLLECTION_NAME,
+            points=points,
             wait=True,
         )
 
