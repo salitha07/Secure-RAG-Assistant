@@ -478,6 +478,173 @@ async def update_document_metadata(
         ) from error
 
     return document
+@router.put(
+    "/{document_id}/file",
+    response_model=DocumentUploadResponse,
+)
+async def replace_document_pdf(
+    document_id: UUID,
+    file: UploadFile = File(),
+    current_user: User = Depends(
+        require_document_manager
+    ),
+    session: Session = Depends(get_session),
+):
+    document = get_managed_document(
+        session,
+        document_id,
+    )
+
+    try:
+        file_bytes = await file.read(
+            MAX_PDF_SIZE_BYTES + 1
+        )
+    finally:
+        await file.close()
+
+    try:
+        processed_pdf = await run_in_threadpool(
+            process_pdf_upload,
+            file_name=file.filename or "",
+            content_type=file.content_type,
+            file_bytes=file_bytes,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    old_stored_file_name = (
+        document.stored_file_name
+    )
+    new_stored_file_name = f"{uuid4()}.pdf"
+
+    try:
+        await run_in_threadpool(
+            save_document_file,
+            stored_file_name=(
+                new_stored_file_name
+            ),
+            file_bytes=file_bytes,
+        )
+    except Exception as error:
+        logger.exception(
+            "Replacement PDF could not be saved."
+        )
+
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "The replacement PDF could not "
+                "be saved."
+            ),
+        ) from error
+
+    try:
+        chunks_indexed = await run_in_threadpool(
+            index_document,
+            document_id=document.id,
+            title=document.title,
+            department=document.department,
+            allowed_roles=document.allowed_roles,
+            text=processed_pdf["text"],
+        )
+
+        document.original_file_name = (
+            file.filename or "document.pdf"
+        )
+        document.stored_file_name = (
+            new_stored_file_name
+        )
+        document.content_type = "application/pdf"
+        document.file_size = processed_pdf[
+            "file_size"
+        ]
+        document.status = "ready"
+        document.error_message = None
+        document.updated_at = utc_now()
+
+        session.add(document)
+        session.commit()
+        session.refresh(document)
+
+    except Exception as error:
+        session.rollback()
+
+        logger.exception(
+            "Replacement PDF indexing failed."
+        )
+
+        try:
+            await run_in_threadpool(
+                delete_document_index,
+                document_id,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to clean replacement index."
+            )
+
+        try:
+            await run_in_threadpool(
+                delete_document_file,
+                new_stored_file_name,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to clean replacement PDF."
+            )
+
+        failed_document = session.get(
+            Document,
+            document_id,
+        )
+
+        if failed_document is not None:
+            failed_document.status = "failed"
+            failed_document.error_message = (
+                "PDF replacement failed."
+            )
+            failed_document.updated_at = utc_now()
+
+            try:
+                session.add(failed_document)
+                session.commit()
+            except Exception:
+                session.rollback()
+
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "The replacement PDF could not "
+                "be indexed."
+            ),
+        ) from error
+
+    try:
+        await run_in_threadpool(
+            delete_document_file,
+            old_stored_file_name,
+        )
+    except Exception:
+        logger.exception(
+            "Old PDF could not be deleted."
+        )
+
+    response_data = DocumentResponse.model_validate(
+        document
+    ).model_dump()
+
+    return {
+        **response_data,
+        "page_count": processed_pdf["page_count"],
+        "chunks_indexed": chunks_indexed,
+    }
 async def delete_document(
     document_id: UUID,
     current_user: User = Depends(
