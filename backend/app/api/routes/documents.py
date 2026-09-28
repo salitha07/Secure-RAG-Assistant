@@ -55,6 +55,11 @@ router = APIRouter(
     tags=["Documents"],
 )
 
+
+# ============================================================
+# HELPER
+# ============================================================
+
 def get_managed_document(
     session: Session,
     document_id: UUID,
@@ -71,6 +76,11 @@ def get_managed_document(
         )
 
     return document
+
+
+# ============================================================
+# UPLOAD DOCUMENT
+# ============================================================
 
 @router.post(
     "",
@@ -95,9 +105,7 @@ async def upload_document(
 ):
     if current_user.id is None:
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authenticated user is invalid.",
         )
 
@@ -186,12 +194,8 @@ async def upload_document(
         )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
-            detail=(
-                "The document could not be saved."
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The document could not be saved.",
         ) from error
 
     try:
@@ -251,12 +255,8 @@ async def upload_document(
                 )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
-            detail=(
-                "The document could not be indexed."
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The document could not be indexed.",
         ) from error
 
     response_data = DocumentResponse.model_validate(
@@ -269,6 +269,10 @@ async def upload_document(
         "chunks_indexed": chunks_indexed,
     }
 
+
+# ============================================================
+# LIST DOCUMENTS
+# ============================================================
 
 @router.get(
     "",
@@ -307,6 +311,12 @@ def list_documents(
         "items": documents,
         "total": total,
     }
+
+
+# ============================================================
+# GET SINGLE DOCUMENT
+# ============================================================
+
 @router.get(
     "/{document_id}",
     response_model=DocumentResponse,
@@ -322,10 +332,12 @@ def get_document(
         session,
         document_id,
     )
-@router.delete(
-    "/{document_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+
+
+# ============================================================
+# UPDATE DOCUMENT METADATA
+# ============================================================
+
 @router.patch(
     "/{document_id}",
     response_model=DocumentResponse,
@@ -348,6 +360,7 @@ async def update_document_metadata(
         if request.title is not None
         else document.title
     )
+
     updated_department = (
         request.department
         if request.department is not None
@@ -363,18 +376,14 @@ async def update_document_metadata(
             )
         except ValueError as error:
             raise HTTPException(
-                status_code=(
-                    status.HTTP_400_BAD_REQUEST
-                ),
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(error),
             ) from error
 
     nothing_changed = (
         updated_title == document.title
-        and updated_department
-        == document.department
-        and updated_roles
-        == document.allowed_roles
+        and updated_department == document.department
+        and updated_roles == document.allowed_roles
     )
 
     if nothing_changed:
@@ -402,9 +411,7 @@ async def update_document_metadata(
         )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The stored document could not "
                 "be processed."
@@ -468,9 +475,7 @@ async def update_document_metadata(
                 session.rollback()
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The document metadata could "
                 "not be updated."
@@ -478,6 +483,12 @@ async def update_document_metadata(
         ) from error
 
     return document
+
+
+# ============================================================
+# REPLACE PDF
+# ============================================================
+
 @router.put(
     "/{document_id}/file",
     response_model=DocumentUploadResponse,
@@ -518,14 +529,13 @@ async def replace_document_pdf(
     old_stored_file_name = (
         document.stored_file_name
     )
+
     new_stored_file_name = f"{uuid4()}.pdf"
 
     try:
         await run_in_threadpool(
             save_document_file,
-            stored_file_name=(
-                new_stored_file_name
-            ),
+            stored_file_name=new_stored_file_name,
             file_bytes=file_bytes,
         )
     except Exception as error:
@@ -534,9 +544,7 @@ async def replace_document_pdf(
         )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The replacement PDF could not "
                 "be saved."
@@ -556,13 +564,17 @@ async def replace_document_pdf(
         document.original_file_name = (
             file.filename or "document.pdf"
         )
+
         document.stored_file_name = (
             new_stored_file_name
         )
+
         document.content_type = "application/pdf"
+
         document.file_size = processed_pdf[
             "file_size"
         ]
+
         document.status = "ready"
         document.error_message = None
         document.updated_at = utc_now()
@@ -617,9 +629,7 @@ async def replace_document_pdf(
                 session.rollback()
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The replacement PDF could not "
                 "be indexed."
@@ -645,6 +655,16 @@ async def replace_document_pdf(
         "page_count": processed_pdf["page_count"],
         "chunks_indexed": chunks_indexed,
     }
+
+
+# ============================================================
+# DELETE DOCUMENT
+# ============================================================
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def delete_document(
     document_id: UUID,
     current_user: User = Depends(
@@ -656,6 +676,13 @@ async def delete_document(
         session,
         document_id,
     )
+
+    # Save the filename before deleting the DB record.
+    stored_file_name = document.stored_file_name
+
+    # --------------------------------------------------------
+    # 1. Delete Qdrant/vector index
+    # --------------------------------------------------------
 
     try:
         await run_in_threadpool(
@@ -669,18 +696,16 @@ async def delete_document(
         )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The document index could not "
                 "be deleted."
             ),
         ) from error
 
-    stored_file_name = (
-        document.stored_file_name
-    )
+    # --------------------------------------------------------
+    # 2. Delete database record
+    # --------------------------------------------------------
 
     try:
         session.delete(document)
@@ -694,14 +719,16 @@ async def delete_document(
         )
 
         raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "The document record could not "
                 "be deleted."
             ),
         ) from error
+
+    # --------------------------------------------------------
+    # 3. Delete stored PDF
+    # --------------------------------------------------------
 
     try:
         await run_in_threadpool(
@@ -710,11 +737,15 @@ async def delete_document(
         )
 
     except Exception:
+        # The DB record is already deleted.
+        # Log the orphaned file problem rather than
+        # returning an error after a successful deletion.
         logger.exception(
             "Orphaned document file could not "
             "be deleted."
         )
 
+    # HTTP 204 must not contain a response body.
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
     )
