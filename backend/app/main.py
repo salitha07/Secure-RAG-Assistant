@@ -1,4 +1,7 @@
 import os
+from backend.app.api.routes.documents import (
+    router as documents_router,
+)
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -51,6 +54,10 @@ app.add_middleware(
         "GET",
         "POST",
         "OPTIONS",
+        "DELETE",
+        "PUT",
+        "PATCH",
+        
     ],
     allow_headers=[
         "Authorization",
@@ -63,6 +70,7 @@ app.include_router(auth_router)
 app.include_router(rag_router)
 app.include_router(audit_router)
 app.include_router(conversations_router)
+app.include_router(documents_router)
 
 @app.get("/health", tags=["Health"])
 def health_check():

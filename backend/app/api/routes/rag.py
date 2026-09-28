@@ -296,14 +296,18 @@ def ask(
 
     if conversation is None:
         conversation = Conversation(
-            user_id=current_user.id,
-            access_role=current_role,
-            title=create_conversation_title(
-                request.question
-            ),
-        )
+        user_id=current_user.id,
+        access_role=current_role,
+        title=create_conversation_title(
+            request.question
+        ),
+    )
 
-        session.add(conversation)
+    session.add(conversation)
+
+    # Insert the parent conversation before
+    # inserting its chat messages.
+    session.flush()
 
     conversation.updated_at = utc_now()
 
