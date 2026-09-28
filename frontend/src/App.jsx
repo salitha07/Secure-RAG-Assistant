@@ -12,7 +12,7 @@ import Register from "./pages/Register";
 import {
   isAuthenticated,
 } from "./services/api";
-
+import Documents from "./pages/Documents";
 
 function ProtectedRoute({ children }) {
   if (!isAuthenticated()) {
@@ -82,7 +82,16 @@ function App() {
           />
         }
       />
+      <Route
+  path="/documents"
+  element={
+    <ProtectedRoute>
+      <Documents />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
+    
   );
 }
 

@@ -83,13 +83,17 @@ function Chat() {
   const messagesEndRef = useRef(null);
 
   const [user, setUser] = useState(null);
+
   const [profileError, setProfileError] =
     useState("");
 
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] =
+    useState("");
+
   const [messages, setMessages] = useState([
     welcomeMessage,
   ]);
+
   const [isAsking, setIsAsking] =
     useState(false);
 
@@ -231,11 +235,13 @@ function Chat() {
       );
 
       setActiveConversationId(response.id);
+
       setMessages(
         loadedMessages.length > 0
           ? loadedMessages
           : [welcomeMessage],
       );
+
       setQuestion("");
     } catch (error) {
       if (error.status === 401) {
@@ -379,22 +385,39 @@ function Chat() {
   }
 
 
+  /*
+   * Executive and Admin users can access
+   * the Audit Dashboard.
+   */
   const canViewAudit =
-    user
-    && AUDIT_ROLES.includes(user.role);
+  user &&
+  AUDIT_ROLES.includes(user.role);
 
+const canManageDocuments =
+  user &&
+  AUDIT_ROLES.includes(user.role);
 
   return (
     <main className="chat-page">
+
       <aside className="chat-sidebar">
+
         <div className="chat-brand">
-          <div className="brand-icon">S</div>
+          <div className="brand-icon">
+            S
+          </div>
 
           <div>
-            <strong>Secure RAG</strong>
-            <span>Knowledge Assistant</span>
+            <strong>
+              Secure RAG
+            </strong>
+
+            <span>
+              Knowledge Assistant
+            </span>
           </div>
         </div>
+
 
         <button
           type="button"
@@ -405,6 +428,9 @@ function Chat() {
           <span>+</span>
           New conversation
         </button>
+
+
+        {/* Audit Dashboard button */}
 
         {canViewAudit && (
           <button
@@ -417,9 +443,27 @@ function Chat() {
           </button>
         )}
 
+
+        {/* Documents button */}
+
+        {canManageDocuments && (
+          <button
+            type="button"
+            className="audit-dashboard-link"
+            onClick={() => navigate("/documents")}
+          >
+            <span>▣</span>
+            Documents
+          </button>
+        )}
+
+
         <div className="history-section">
+
           <div className="history-heading">
-            <span>Chat history</span>
+            <span>
+              Chat history
+            </span>
 
             <button
               type="button"
@@ -432,12 +476,15 @@ function Chat() {
             </button>
           </div>
 
+
           <div className="history-list">
+
             {isLoadingHistory && (
               <p className="history-status">
                 Loading history...
               </p>
             )}
+
 
             {!isLoadingHistory
               && historyError
@@ -447,6 +494,7 @@ function Chat() {
                 </p>
               )}
 
+
             {!isLoadingHistory
               && !historyError
               && conversations.length === 0
@@ -455,6 +503,7 @@ function Chat() {
                   No saved conversations yet.
                 </p>
               )}
+
 
             {conversations.map((conversation) => (
               <div
@@ -469,6 +518,7 @@ function Chat() {
                   )
                 }
               >
+
                 <button
                   type="button"
                   className="history-open-button"
@@ -493,6 +543,7 @@ function Chat() {
                   </small>
                 </button>
 
+
                 <button
                   type="button"
                   className="history-delete-button"
@@ -510,29 +561,41 @@ function Chat() {
                 >
                   ×
                 </button>
+
               </div>
             ))}
+
           </div>
         </div>
 
+
         <div className="security-panel">
+
           <span className="security-indicator" />
 
           <div>
-            <strong>Role protection active</strong>
+            <strong>
+              Role protection active
+            </strong>
+
             <p>
               Answers are filtered using your
               verified database role.
             </p>
           </div>
+
         </div>
 
+
         <div className="profile-summary">
+
           <div className="profile-avatar">
             {getInitials(user?.full_name)}
           </div>
 
+
           <div className="profile-meta">
+
             <strong>
               {user?.full_name ?? "Loading profile"}
             </strong>
@@ -546,8 +609,11 @@ function Chat() {
             <small>
               {formatRole(user?.role)} access
             </small>
+
           </div>
+
         </div>
+
 
         <button
           type="button"
@@ -556,33 +622,51 @@ function Chat() {
         >
           Sign out
         </button>
+
       </aside>
 
+
       <section className="chat-main">
+
         <header className="chat-header">
+
           <div>
             <p className="eyebrow">
               SECURE WORKSPACE
             </p>
-            <h1>Company Knowledge Assistant</h1>
+
+            <h1>
+              Company Knowledge Assistant
+            </h1>
           </div>
 
+
           <div className="header-role">
-            <span className="header-lock">✓</span>
+
+            <span className="header-lock">
+              ✓
+            </span>
+
             {formatRole(user?.role)}
+
           </div>
+
         </header>
+
 
         <div
           className="message-scroll"
           aria-live="polite"
         >
+
           <div className="messages-container">
+
             {isLoadingConversation && (
               <div className="conversation-loading">
                 Loading conversation...
               </div>
             )}
+
 
             {!isLoadingConversation
               && messages.map((message) => (
@@ -592,13 +676,16 @@ function Chat() {
                     `message-row ${message.role}`
                   }
                 >
+
                   <div className="message-avatar">
                     {message.role === "user"
                       ? getInitials(user?.full_name)
                       : "S"}
                   </div>
 
+
                   <div className="message-content">
+
                     <span className="message-author">
                       {message.role === "user"
                         ? "You"
@@ -607,13 +694,19 @@ function Chat() {
                           : "Secure RAG"}
                     </span>
 
+
                     <div className="message-bubble">
                       {message.text}
                     </div>
 
+
                     {message.citations.length > 0 && (
                       <div className="citations">
-                        <p>Verified sources</p>
+
+                        <p>
+                          Verified sources
+                        </p>
+
 
                         {message.citations.map(
                           (citation) => (
@@ -624,7 +717,9 @@ function Chat() {
                                 + citation.chunk_id
                               }
                             >
+
                               <div>
+
                                 <span>
                                   Source{" "}
                                   {citation.source_number}
@@ -633,7 +728,9 @@ function Chat() {
                                 <strong>
                                   {citation.title}
                                 </strong>
+
                               </div>
+
 
                               <small>
                                 {Math.round(
@@ -641,43 +738,64 @@ function Chat() {
                                 )}
                                 % match
                               </small>
+
                             </div>
                           ),
                         )}
+
                       </div>
                     )}
+
                   </div>
+
                 </article>
               ))}
 
+
             {isAsking && (
               <article className="message-row assistant">
-                <div className="message-avatar">S</div>
+
+                <div className="message-avatar">
+                  S
+                </div>
+
 
                 <div className="message-content">
+
                   <span className="message-author">
                     Secure RAG
                   </span>
 
+
                   <div className="typing-indicator">
+
                     <span />
                     <span />
                     <span />
+
                   </div>
+
                 </div>
+
               </article>
             )}
 
+
             <div ref={messagesEndRef} />
+
           </div>
+
         </div>
 
+
         <footer className="composer-section">
+
           {messages.length === 1
             && !activeConversationId
             && suggestions.length > 0
             && (
               <div className="suggestions">
+
                 {suggestions.map((suggestion) => (
                   <button
                     type="button"
@@ -689,13 +807,16 @@ function Chat() {
                     {suggestion}
                   </button>
                 ))}
+
               </div>
             )}
+
 
           <form
             className="composer"
             onSubmit={handleSubmit}
           >
+
             <textarea
               value={question}
               onChange={(event) =>
@@ -707,6 +828,7 @@ function Chat() {
                   && !event.shiftKey
                 ) {
                   event.preventDefault();
+
                   event.currentTarget.form
                     ?.requestSubmit();
                 }
@@ -720,6 +842,7 @@ function Chat() {
               }
             />
 
+
             <button
               type="submit"
               disabled={
@@ -731,16 +854,26 @@ function Chat() {
             >
               ↑
             </button>
+
           </form>
 
+
           <div className="composer-details">
+
             <span>
               Answers use authorized evidence only.
             </span>
-            <span>{question.length}/1000</span>
+
+            <span>
+              {question.length}/1000
+            </span>
+
           </div>
+
         </footer>
+
       </section>
+
     </main>
   );
 }
