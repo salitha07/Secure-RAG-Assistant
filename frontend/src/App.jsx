@@ -1,3 +1,4 @@
+import AdminUsers from "./pages/AdminUsers";
 import {
   Navigate,
   Route,
@@ -89,6 +90,11 @@ function App() {
       <Documents />
     </ProtectedRoute>
   }
+
+/>
+<Route
+  path="/admin/users"
+  element={<AdminUsers />}
 />
     </Routes>
     

@@ -1,4 +1,5 @@
 import os
+from backend.app.api.routes import users
 from backend.app.api.routes.documents import (
     router as documents_router,
 )
@@ -71,6 +72,7 @@ app.include_router(rag_router)
 app.include_router(audit_router)
 app.include_router(conversations_router)
 app.include_router(documents_router)
+app.include_router(users.router)
 
 @app.get("/health", tags=["Health"])
 def health_check():
