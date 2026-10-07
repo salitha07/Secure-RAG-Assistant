@@ -1,9 +1,14 @@
+import AppLayout from "../components/AppLayout";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   getUsers,
   updateUserRole,
   updateUserStatus,
 } from "../services/api";
+
+import "../styles/admin-users.css";
 
 const ROLES = [
   "employee",
@@ -13,7 +18,30 @@ const ROLES = [
   "admin",
 ];
 
+function formatRole(role) {
+  if (!role) {
+    return "Unknown";
+  }
+
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function getInitials(name) {
+  if (!name) {
+    return "U";
+  }
+
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+}
+
 function AdminUsers() {
+  const navigate = useNavigate();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,7 +55,23 @@ function AdminUsers() {
       const data = await getUsers();
       setUsers(data);
     } catch (err) {
-      setError(err.message || "Failed to load users.");
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
+
+      if (err.status === 403) {
+        setError(
+          "You do not have permission to access user management.",
+        );
+        return;
+      }
+
+      setError(
+        err.message || "Failed to load users.",
+      );
     } finally {
       setLoading(false);
     }
@@ -42,228 +86,438 @@ function AdminUsers() {
       setUpdatingUser(userId);
       setError("");
 
-      const updatedUser = await updateUserRole(userId, newRole);
+      const updatedUser = await updateUserRole(
+        userId,
+        newRole,
+      );
 
       setUsers((currentUsers) =>
         currentUsers.map((user) =>
-          user.id === updatedUser.id ? updatedUser : user
-        )
+          user.id === updatedUser.id
+            ? updatedUser
+            : user,
+        ),
       );
     } catch (err) {
-      setError(err.message || "Failed to update user role.");
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
+
+      setError(
+        err.message || "Failed to update user role.",
+      );
     } finally {
       setUpdatingUser(null);
     }
   }
 
-  async function handleStatusChange(userId, currentStatus) {
+  async function handleStatusChange(
+    userId,
+    currentStatus,
+  ) {
     try {
       setUpdatingUser(userId);
       setError("");
 
       const updatedUser = await updateUserStatus(
         userId,
-        !currentStatus
+        !currentStatus,
       );
 
       setUsers((currentUsers) =>
         currentUsers.map((user) =>
-          user.id === updatedUser.id ? updatedUser : user
-        )
+          user.id === updatedUser.id
+            ? updatedUser
+            : user,
+        ),
       );
     } catch (err) {
-      setError(err.message || "Failed to update user status.");
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
+
+      setError(
+        err.message || "Failed to update user status.",
+      );
     } finally {
       setUpdatingUser(null);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Loading users...</p>
-      </div>
-    );
-  }
+  const activeUsers = users.filter(
+    (user) => user.is_active,
+  ).length;
+
+  const inactiveUsers = users.filter(
+    (user) => !user.is_active,
+  ).length;
+
+  const adminUsers = users.filter(
+    (user) => user.role === "admin",
+  ).length;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
+    <AppLayout>
+      <main className="admin-users-page">
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            User Management
-          </h1>
+        {/* Loading */}
+        {loading ? (
+          <div className="admin-users-loading">
+            <div className="admin-loading-spinner" />
 
-          <p className="text-gray-600 mt-1">
-            Manage user roles and account status.
-          </p>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-5 rounded-lg bg-red-100 border border-red-300 text-red-700 px-4 py-3">
-            {error}
+            <p>
+              Loading user management...
+            </p>
           </div>
+        ) : (
+          <>
+            {/* Header */}
+            <header className="admin-users-header">
+
+              <div className="admin-users-heading">
+
+                <button
+                  type="button"
+                  className="admin-back-button"
+                  onClick={() => navigate("/chat")}
+                >
+                  ← Back to workspace
+                </button>
+
+                <p className="admin-eyebrow">
+                  ADMINISTRATION
+                </p>
+
+                <h1>
+                  User Management
+                </h1>
+
+                <p className="admin-description">
+                  Manage users, roles, and account
+                  access across the Secure RAG
+                  workspace.
+                </p>
+
+              </div>
+
+              <div className="admin-security-badge">
+
+                <span className="admin-security-dot" />
+
+                <div>
+                  <strong>
+                    Admin access
+                  </strong>
+
+                  <span>
+                    Protected management area
+                  </span>
+                </div>
+
+              </div>
+
+            </header>
+
+            {/* Statistics */}
+            <section className="admin-stats">
+
+              <div className="admin-stat-card">
+
+                <div className="admin-stat-icon">
+                  U
+                </div>
+
+                <div>
+                  <span>
+                    Total users
+                  </span>
+
+                  <strong>
+                    {users.length}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="admin-stat-card">
+
+                <div className="admin-stat-icon green">
+                  ✓
+                </div>
+
+                <div>
+                  <span>
+                    Active users
+                  </span>
+
+                  <strong>
+                    {activeUsers}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="admin-stat-card">
+
+                <div className="admin-stat-icon yellow">
+                  A
+                </div>
+
+                <div>
+                  <span>
+                    Administrators
+                  </span>
+
+                  <strong>
+                    {adminUsers}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="admin-stat-card">
+
+                <div className="admin-stat-icon red">
+                  !
+                </div>
+
+                <div>
+                  <span>
+                    Inactive
+                  </span>
+
+                  <strong>
+                    {inactiveUsers}
+                  </strong>
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* Error */}
+            {error && (
+              <div className="admin-error">
+
+                <span>!</span>
+
+                <div>
+                  <strong>
+                    Something went wrong
+                  </strong>
+
+                  <p>
+                    {error}
+                  </p>
+                </div>
+
+              </div>
+            )}
+
+            {/* User management */}
+            <section className="admin-users-card">
+
+              <div className="admin-users-card-header">
+
+                <div>
+                  <h2>
+                    Workspace users
+                  </h2>
+
+                  <p>
+                    Change roles or control account
+                    access.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="admin-refresh-button"
+                  onClick={loadUsers}
+                  disabled={
+                    loading ||
+                    updatingUser !== null
+                  }
+                >
+                  ↻ Refresh
+                </button>
+
+              </div>
+
+              <div className="admin-table-wrapper">
+
+                <table className="admin-users-table">
+
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Access</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {users.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="5"
+                          className="admin-empty"
+                        >
+                          No users found.
+                        </td>
+                      </tr>
+                    ) : (
+                      users.map((user) => (
+                        <tr key={user.id}>
+
+                          {/* User */}
+                          <td>
+                            <div className="admin-user-cell">
+
+                              <div className="admin-avatar">
+                                {getInitials(
+                                  user.full_name,
+                                )}
+                              </div>
+
+                              <div>
+                                <strong>
+                                  {user.full_name}
+                                </strong>
+
+                                <span>
+                                  User ID #{user.id}
+                                </span>
+                              </div>
+
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td>
+                            <span className="admin-email">
+                              {user.email}
+                            </span>
+                          </td>
+
+                          {/* Role */}
+                          <td>
+                            <select
+                              value={user.role}
+                              disabled={
+                                updatingUser ===
+                                user.id
+                              }
+                              onChange={(event) =>
+                                handleRoleChange(
+                                  user.id,
+                                  event.target.value,
+                                )
+                              }
+                              className="admin-role-select"
+                            >
+                              {ROLES.map((role) => (
+                                <option
+                                  key={role}
+                                  value={role}
+                                >
+                                  {formatRole(role)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+
+                          {/* Status */}
+                          <td>
+                            {user.is_active ? (
+                              <span className="admin-status active">
+                                <span />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="admin-status inactive">
+                                <span />
+                                Inactive
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Access */}
+                          <td>
+                            <button
+                              type="button"
+                              className={
+                                user.is_active
+                                  ? "admin-access-button deactivate"
+                                  : "admin-access-button activate"
+                              }
+                              disabled={
+                                updatingUser ===
+                                user.id
+                              }
+                              onClick={() =>
+                                handleStatusChange(
+                                  user.id,
+                                  user.is_active,
+                                )
+                              }
+                            >
+                              {updatingUser ===
+                              user.id
+                                ? "Updating..."
+                                : user.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                            </button>
+                          </td>
+
+                        </tr>
+                      ))
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </section>
+
+            {/* Security information */}
+            <section className="admin-security-info">
+
+              <div className="admin-security-info-icon">
+                ✓
+              </div>
+
+              <div>
+                <strong>
+                  Role-based access control
+                </strong>
+
+                <p>
+                  User permissions are enforced by
+                  the backend. Changing a role updates
+                  the user's access to authorized
+                  company documents.
+                </p>
+              </div>
+
+            </section>
+          </>
         )}
 
-        {/* Users table */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    ID
-                  </th>
-
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    Name
-                  </th>
-
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    Email
-                  </th>
-
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    Role
-                  </th>
-
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y">
-
-                {users.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-6 py-8 text-center text-gray-500"
-                    >
-                      No users found.
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-gray-50"
-                    >
-
-                      {/* ID */}
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {user.id}
-                      </td>
-
-                      {/* Name */}
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {user.full_name}
-                      </td>
-
-                      {/* Email */}
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {user.email}
-                      </td>
-
-                      {/* Role */}
-                      <td className="px-6 py-4">
-                        <select
-                          value={user.role}
-                          disabled={updatingUser === user.id}
-                          onChange={(event) =>
-                            handleRoleChange(
-                              user.id,
-                              event.target.value
-                            )
-                          }
-                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {ROLES.map((role) => (
-                            <option
-                              key={role}
-                              value={role}
-                            >
-                              {role.charAt(0).toUpperCase() +
-                                role.slice(1)}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-6 py-4">
-
-                        {user.is_active ? (
-                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            Inactive
-                          </span>
-                        )}
-
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-6 py-4">
-
-                        <button
-                          disabled={updatingUser === user.id}
-                          onClick={() =>
-                            handleStatusChange(
-                              user.id,
-                              user.is_active
-                            )
-                          }
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                            user.is_active
-                              ? "bg-red-600 hover:bg-red-700 text-white"
-                              : "bg-green-600 hover:bg-green-700 text-white"
-                          } disabled:opacity-50`}
-                        >
-                          {updatingUser === user.id
-                            ? "Updating..."
-                            : user.is_active
-                            ? "Deactivate"
-                            : "Activate"}
-                        </button>
-
-                      </td>
-
-                    </tr>
-                  ))
-                )}
-
-              </tbody>
-
-            </table>
-          </div>
-
-        </div>
-
-        {/* Refresh */}
-        <div className="mt-5">
-          <button
-            onClick={loadUsers}
-            className="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg"
-          >
-            Refresh Users
-          </button>
-        </div>
-
-      </div>
-    </div>
+      </main>
+    </AppLayout>
   );
 }
 

@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -11,96 +12,54 @@ import {
   deleteConversation,
   getConversation,
   getConversations,
-  getCurrentUser,
-  logoutUser,
 } from "../services/api";
 
-import "../styles/chat.css";
+import AppLayout from "../components/AppLayout";
 
+import "../styles/chat.css";
 
 const welcomeMessage = {
   id: "welcome",
   role: "assistant",
-  text: (
-    "Welcome to Secure RAG Assistant. "
-    + "Ask a question and I will answer using "
-    + "only the documents your role can access."
-  ),
-  citations: [],
+  content:
+    "Hello! I’m your Secure RAG Assistant. Ask me a question about the company documents you are authorized to access.",
 };
 
-
-const AUDIT_ROLES = [
-  "executive",
-  "admin",
-];
-
-
 function createMessageId() {
-  return crypto.randomUUID();
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 9)}`;
 }
-
-
-function formatRole(role) {
-  if (!role) {
-    return "Loading...";
-  }
-
-  return (
-    role.charAt(0).toUpperCase()
-    + role.slice(1)
-  );
-}
-
-
-function getInitials(name) {
-  if (!name) {
-    return "U";
-  }
-
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-}
-
 
 function formatHistoryDate(dateValue) {
-  return new Date(dateValue).toLocaleDateString(
-    undefined,
-    {
-      month: "short",
-      day: "numeric",
-    },
-  );
-}
+  if (!dateValue) return "";
 
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 function Chat() {
   const navigate = useNavigate();
-  const messagesEndRef = useRef(null);
 
-  const [user, setUser] = useState(null);
-
-  const [profileError, setProfileError] =
-    useState("");
-
-  const [question, setQuestion] =
-    useState("");
+  const [question, setQuestion] = useState("");
 
   const [messages, setMessages] = useState([
     welcomeMessage,
   ]);
 
-  const [isAsking, setIsAsking] =
-    useState(false);
+  const [isAsking, setIsAsking] = useState(false);
 
-  const [
-    conversations,
-    setConversations,
-  ] = useState([]);
+  const [conversations, setConversations] =
+    useState([]);
 
   const [
     activeConversationId,
@@ -110,7 +69,7 @@ function Chat() {
   const [
     isLoadingHistory,
     setIsLoadingHistory,
-  ] = useState(true);
+  ] = useState(false);
 
   const [
     isLoadingConversation,
@@ -120,70 +79,11 @@ function Chat() {
   const [historyError, setHistoryError] =
     useState("");
 
+  const messagesEndRef = useRef(null);
 
-  const loadConversationHistory = useCallback(
-    async () => {
-      setIsLoadingHistory(true);
-      setHistoryError("");
-
-      try {
-        const response = await getConversations({
-          limit: 50,
-          offset: 0,
-        });
-
-        setConversations(response.items ?? []);
-      } catch (error) {
-        if (error.status === 401) {
-          navigate("/login", {
-            replace: true,
-          });
-          return;
-        }
-
-        setHistoryError(error.message);
-      } finally {
-        setIsLoadingHistory(false);
-      }
-    },
-    [navigate],
-  );
-
-
-  useEffect(() => {
-    let isActive = true;
-
-    getCurrentUser()
-      .then((profile) => {
-        if (isActive) {
-          setUser(profile);
-        }
-      })
-      .catch((error) => {
-        if (!isActive) {
-          return;
-        }
-
-        if (error.status === 401) {
-          navigate("/login", {
-            replace: true,
-          });
-          return;
-        }
-
-        setProfileError(error.message);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [navigate]);
-
-
-  useEffect(() => {
-    loadConversationHistory();
-  }, [loadConversationHistory]);
-
+  /* ==========================================
+     Scroll to bottom
+  ========================================== */
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -191,124 +91,237 @@ function Chat() {
     });
   }, [messages, isAsking]);
 
+  /* ==========================================
+     Load conversation history
+  ========================================== */
 
-  const suggestions =
-    user?.role === "executive"
-      ? [
-          "What is Project Aurora?",
-          "Summarize the executive strategy.",
-        ]
-      : user?.role === "admin"
-        ? []
-        : [
-            "Summarize the employee handbook.",
-            "What information can I access?",
-          ];
+  const loadConversations = useCallback(
+    async () => {
+      setIsLoadingHistory(true);
+      setHistoryError("");
 
+      try {
+        const response =
+          await getConversations();
 
-  async function handleOpenConversation(
-    conversationId,
-  ) {
-    if (
-      isAsking
-      || isLoadingConversation
-      || conversationId === activeConversationId
-    ) {
-      return;
-    }
+        const items = Array.isArray(response)
+          ? response
+          : response?.conversations ||
+            response?.items ||
+            response?.data ||
+            [];
 
-    setIsLoadingConversation(true);
-    setHistoryError("");
+        setConversations(items);
+      } catch (error) {
+        console.error(
+          "Failed to load conversations:",
+          error
+        );
 
-    try {
-      const response = await getConversation(
-        conversationId,
-      );
+        if (error.status === 401) {
+          navigate("/login", {
+            replace: true,
+          });
 
-      const loadedMessages = response.messages.map(
-        (message) => ({
-          id: message.id,
-          role: message.role,
-          text: message.content,
-          citations: message.citations ?? [],
-        }),
-      );
+          return;
+        }
 
-      setActiveConversationId(response.id);
+        setHistoryError(
+          "Unable to load chat history."
+        );
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    },
+    [navigate]
+  );
 
-      setMessages(
-        loadedMessages.length > 0
-          ? loadedMessages
-          : [welcomeMessage],
-      );
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  /* ==========================================
+     Open conversation
+  ========================================== */
+
+  const openConversation = useCallback(
+    async (conversationId) => {
+      if (!conversationId) return;
+
+      setIsLoadingConversation(true);
+      setHistoryError("");
+
+      try {
+        const response =
+          await getConversation(
+            conversationId
+          );
+
+        const conversation =
+          response?.conversation ||
+          response;
+
+        const historyMessages =
+          conversation?.messages ||
+          response?.messages ||
+          [];
+
+        const normalizedMessages =
+          historyMessages.map(
+            (message, index) => ({
+              id:
+                message.id ||
+                `history-${index}-${conversationId}`,
+
+              role:
+                message.role ||
+                (message.is_user
+                  ? "user"
+                  : "assistant"),
+
+              content:
+                message.content ||
+                message.answer ||
+                message.question ||
+                "",
+
+              citations:
+                message.citations || [],
+            })
+          );
+
+        setMessages(
+          normalizedMessages.length
+            ? normalizedMessages
+            : [welcomeMessage]
+        );
+
+        setActiveConversationId(
+          conversationId
+        );
+
+        navigate("/chat");
+      } catch (error) {
+        console.error(
+          "Failed to open conversation:",
+          error
+        );
+
+        if (error.status === 401) {
+          navigate("/login", {
+            replace: true,
+          });
+
+          return;
+        }
+
+        setHistoryError(
+          "Unable to open this conversation."
+        );
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    },
+    [navigate]
+  );
+
+  /* ==========================================
+     New conversation
+  ========================================== */
+
+  const startNewConversation = useCallback(
+    () => {
+      setMessages([welcomeMessage]);
 
       setQuestion("");
-    } catch (error) {
-      if (error.status === 401) {
-        navigate("/login", {
-          replace: true,
-        });
-        return;
-      }
 
-      setHistoryError(error.message);
-    } finally {
-      setIsLoadingConversation(false);
-    }
-  }
+      setActiveConversationId(null);
 
+      setHistoryError("");
 
-  async function handleDeleteConversation(
-    event,
-    conversationId,
-  ) {
-    event.stopPropagation();
+      navigate("/chat");
+    },
+    [navigate]
+  );
 
-    const shouldDelete = window.confirm(
-      "Delete this conversation permanently?",
+  /* ==========================================
+     Delete conversation
+  ========================================== */
+
+  const handleDeleteConversation =
+    useCallback(
+      async (conversationId) => {
+        if (!conversationId) return;
+
+        const confirmed = window.confirm(
+          "Delete this conversation?"
+        );
+
+        if (!confirmed) return;
+
+        try {
+          await deleteConversation(
+            conversationId
+          );
+
+          setConversations((current) =>
+            current.filter(
+              (conversation) =>
+                String(conversation.id) !==
+                String(conversationId)
+            )
+          );
+
+          if (
+            String(activeConversationId) ===
+            String(conversationId)
+          ) {
+            startNewConversation();
+          }
+        } catch (error) {
+          console.error(
+            "Failed to delete conversation:",
+            error
+          );
+
+          if (error.status === 401) {
+            navigate("/login", {
+              replace: true,
+            });
+
+            return;
+          }
+
+          setHistoryError(
+            "Unable to delete this conversation."
+          );
+        }
+      },
+      [
+        activeConversationId,
+        navigate,
+        startNewConversation,
+      ]
     );
 
-    if (!shouldDelete) {
-      return;
-    }
-
-    try {
-      await deleteConversation(conversationId);
-
-      if (
-        activeConversationId === conversationId
-      ) {
-        startNewConversation();
-      }
-
-      await loadConversationHistory();
-    } catch (error) {
-      if (error.status === 401) {
-        navigate("/login", {
-          replace: true,
-        });
-        return;
-      }
-
-      setHistoryError(error.message);
-    }
-  }
-
+  /* ==========================================
+     Ask question
+  ========================================== */
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    const cleanedQuestion = question.trim();
+    const trimmedQuestion =
+      question.trim();
 
-    if (!cleanedQuestion || isAsking) {
+    if (!trimmedQuestion || isAsking) {
       return;
     }
 
     const userMessage = {
       id: createMessageId(),
       role: "user",
-      text: cleanedQuestion,
-      citations: [],
+      content: trimmedQuestion,
     };
 
     setMessages((current) => [
@@ -318,565 +331,319 @@ function Chat() {
 
     setQuestion("");
     setIsAsking(true);
+    setHistoryError("");
 
     try {
       const response = await askQuestion(
-        cleanedQuestion,
-        activeConversationId,
+        trimmedQuestion,
+        activeConversationId
       );
 
-      setActiveConversationId(
-        response.conversation_id,
-      );
+      const answer =
+        response?.answer ||
+        response?.response ||
+        response?.message ||
+        "I could not generate an answer.";
+
+      const citations =
+        response?.citations || [];
+
+      const assistantMessage = {
+        id: createMessageId(),
+        role: "assistant",
+        content: answer,
+        citations,
+      };
 
       setMessages((current) => [
         ...current,
-        {
-          id: createMessageId(),
-          role: "assistant",
-          text: response.answer,
-          citations: response.citations ?? [],
-        },
+        assistantMessage,
       ]);
 
-      await loadConversationHistory();
+      if (response?.conversation_id) {
+        setActiveConversationId(
+          response.conversation_id
+        );
+      }
+
+      await loadConversations();
     } catch (error) {
+      console.error(
+        "Failed to ask question:",
+        error
+      );
+
       if (error.status === 401) {
         navigate("/login", {
           replace: true,
         });
+
         return;
       }
 
+      const errorMessage = {
+        id: createMessageId(),
+        role: "assistant",
+        content:
+          error?.message ||
+          "Sorry, something went wrong while processing your question.",
+      };
+
       setMessages((current) => [
         ...current,
-        {
-          id: createMessageId(),
-          role: "error",
-          text:
-            error.message
-            ?? "The request could not be completed.",
-          citations: [],
-        },
+        errorMessage,
       ]);
     } finally {
       setIsAsking(false);
     }
   }
 
+  /* ==========================================
+     Suggestions
+  ========================================== */
 
-  function handleLogout() {
-    logoutUser();
+  const suggestions = [
+    "Summarize the employee handbook.",
+    "What information can I access?",
+  ];
 
-    navigate("/login", {
-      replace: true,
-    });
+  function useSuggestion(value) {
+    setQuestion(value);
   }
 
-
-  function startNewConversation() {
-    if (isAsking) {
-      return;
-    }
-
-    setActiveConversationId(null);
-    setMessages([welcomeMessage]);
-    setQuestion("");
-  }
-
-
-  /*
-   * Executive and Admin users can access
-   * the Audit Dashboard.
-   */
-  const canViewAudit =
-  user &&
-  AUDIT_ROLES.includes(user.role);
-
-const canManageDocuments =
-  user &&
-  AUDIT_ROLES.includes(user.role);
+  /* ==========================================
+     Render
+  ========================================== */
 
   return (
-    <main className="chat-page">
+    <AppLayout
+      conversations={conversations}
+      activeConversationId={
+        activeConversationId
+      }
+      onOpenConversation={
+        openConversation
+      }
+      onNewConversation={
+        startNewConversation
+      }
+      onDeleteConversation={
+        handleDeleteConversation
+      }
+    >
+      <main className="chat-page">
 
-      <aside className="chat-sidebar">
+        <section className="chat-main">
 
-        <div className="chat-brand">
-          <div className="brand-icon">
-            S
-          </div>
+          {/* Header */}
+          <header className="chat-header">
 
-          <div>
-            <strong>
-              Secure RAG
-            </strong>
+            <div className="chat-header-top">
 
-            <span>
-              Knowledge Assistant
-            </span>
-          </div>
-        </div>
+              <div>
+                <h1>
+                  Secure RAG Assistant
+                </h1>
 
-
-        <button
-          type="button"
-          className="new-chat-button"
-          onClick={startNewConversation}
-          disabled={isAsking}
-        >
-          <span>+</span>
-          New conversation
-        </button>
-
-
-        {/* Audit Dashboard button */}
-
-        {canViewAudit && (
-          <button
-            type="button"
-            className="audit-dashboard-link"
-            onClick={() => navigate("/audit")}
-          >
-            <span>✓</span>
-            Audit Dashboard
-          </button>
-        )}
-
-
-        {/* Documents button */}
-
-        {canManageDocuments && (
-          <button
-            type="button"
-            className="audit-dashboard-link"
-            onClick={() => navigate("/documents")}
-          >
-            <span>▣</span>
-            Documents
-          </button>
-        )}
-
-
-        <div className="history-section">
-
-          <div className="history-heading">
-            <span>
-              Chat history
-            </span>
-
-            <button
-              type="button"
-              aria-label="Refresh chat history"
-              title="Refresh history"
-              onClick={loadConversationHistory}
-              disabled={isLoadingHistory}
-            >
-              ↻
-            </button>
-          </div>
-
-
-          <div className="history-list">
-
-            {isLoadingHistory && (
-              <p className="history-status">
-                Loading history...
-              </p>
-            )}
-
-
-            {!isLoadingHistory
-              && historyError
-              && (
-                <p className="history-status error">
-                  {historyError}
+                <p>
+                  Ask questions about
+                  authorized company
+                  documents.
                 </p>
-              )}
+              </div>
 
-
-            {!isLoadingHistory
-              && !historyError
-              && conversations.length === 0
-              && (
-                <p className="history-status">
-                  No saved conversations yet.
-                </p>
-              )}
-
-
-            {conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={
-                  "history-item"
-                  + (
-                    conversation.id
-                    === activeConversationId
-                      ? " active"
-                      : ""
-                  )
+              <button
+                type="button"
+                className="new-chat-button"
+                onClick={
+                  startNewConversation
                 }
               >
+                + New conversation
+              </button>
 
-                <button
-                  type="button"
-                  className="history-open-button"
-                  disabled={
-                    isAsking
-                    || isLoadingConversation
-                  }
-                  onClick={() =>
-                    handleOpenConversation(
-                      conversation.id,
-                    )
-                  }
-                >
-                  <span title={conversation.title}>
-                    {conversation.title}
-                  </span>
+            </div>
 
-                  <small>
-                    {formatHistoryDate(
-                      conversation.updated_at,
-                    )}
-                  </small>
-                </button>
+          </header>
 
+          {/* Error */}
+          {historyError && (
+            <div className="chat-history-error">
+              {historyError}
+            </div>
+          )}
 
-                <button
-                  type="button"
-                  className="history-delete-button"
-                  aria-label={
-                    `Delete ${conversation.title}`
-                  }
-                  title="Delete conversation"
-                  disabled={isAsking}
-                  onClick={(event) =>
-                    handleDeleteConversation(
-                      event,
-                      conversation.id,
-                    )
-                  }
-                >
-                  ×
-                </button>
+          {/* Loading conversation */}
+          {isLoadingConversation && (
+            <div className="chat-loading">
+              Loading conversation...
+            </div>
+          )}
 
-              </div>
-            ))}
+          {/* Messages */}
+          <div className="message-scroll">
 
-          </div>
-        </div>
+            <div className="messages-container">
 
-
-        <div className="security-panel">
-
-          <span className="security-indicator" />
-
-          <div>
-            <strong>
-              Role protection active
-            </strong>
-
-            <p>
-              Answers are filtered using your
-              verified database role.
-            </p>
-          </div>
-
-        </div>
-
-
-        <div className="profile-summary">
-
-          <div className="profile-avatar">
-            {getInitials(user?.full_name)}
-          </div>
-
-
-          <div className="profile-meta">
-
-            <strong>
-              {user?.full_name ?? "Loading profile"}
-            </strong>
-
-            <span>
-              {profileError
-                || user?.email
-                || "Please wait..."}
-            </span>
-
-            <small>
-              {formatRole(user?.role)} access
-            </small>
-
-          </div>
-
-        </div>
-
-
-        <button
-          type="button"
-          className="logout-button"
-          onClick={handleLogout}
-        >
-          Sign out
-        </button>
-
-      </aside>
-
-
-      <section className="chat-main">
-
-        <header className="chat-header">
-
-          <div>
-            <p className="eyebrow">
-              SECURE WORKSPACE
-            </p>
-
-            <h1>
-              Company Knowledge Assistant
-            </h1>
-          </div>
-
-
-          <div className="header-role">
-
-            <span className="header-lock">
-              ✓
-            </span>
-
-            {formatRole(user?.role)}
-
-          </div>
-
-        </header>
-
-
-        <div
-          className="message-scroll"
-          aria-live="polite"
-        >
-
-          <div className="messages-container">
-
-            {isLoadingConversation && (
-              <div className="conversation-loading">
-                Loading conversation...
-              </div>
-            )}
-
-
-            {!isLoadingConversation
-              && messages.map((message) => (
-                <article
+              {messages.map((message) => (
+                <div
                   key={message.id}
-                  className={
-                    `message-row ${message.role}`
-                  }
+                  className={`message-row ${
+                    message.role === "user"
+                      ? "user-message"
+                      : "assistant-message"
+                  }`}
                 >
 
                   <div className="message-avatar">
                     {message.role === "user"
-                      ? getInitials(user?.full_name)
+                      ? "U"
                       : "S"}
                   </div>
 
+                  <div className="message-content">
+
+                    <div className="message-bubble">
+                      {message.content}
+                    </div>
+
+                    {message.citations &&
+                      message.citations
+                        .length > 0 && (
+                        <div className="message-citations">
+
+                          <strong>
+                            Sources
+                          </strong>
+
+                          {message.citations.map(
+                            (
+                              citation,
+                              index
+                            ) => (
+                              <div
+                                key={
+                                  citation.id ||
+                                  index
+                                }
+                                className="citation-item"
+                              >
+                                {citation.title ||
+                                  citation.document_title ||
+                                  citation.filename ||
+                                  `Source ${index + 1}`}
+                              </div>
+                            )
+                          )}
+
+                        </div>
+                      )}
+
+                  </div>
+
+                </div>
+              ))}
+
+              {/* Typing indicator */}
+              {isAsking && (
+                <div className="message-row assistant-message">
+
+                  <div className="message-avatar">
+                    S
+                  </div>
 
                   <div className="message-content">
 
-                    <span className="message-author">
-                      {message.role === "user"
-                        ? "You"
-                        : message.role === "error"
-                          ? "System"
-                          : "Secure RAG"}
-                    </span>
-
-
-                    <div className="message-bubble">
-                      {message.text}
+                    <div className="message-bubble typing-indicator">
+                      <span />
+                      <span />
+                      <span />
                     </div>
 
-
-                    {message.citations.length > 0 && (
-                      <div className="citations">
-
-                        <p>
-                          Verified sources
-                        </p>
-
-
-                        {message.citations.map(
-                          (citation) => (
-                            <div
-                              className="citation-card"
-                              key={
-                                `${citation.document_id}-`
-                                + citation.chunk_id
-                              }
-                            >
-
-                              <div>
-
-                                <span>
-                                  Source{" "}
-                                  {citation.source_number}
-                                </span>
-
-                                <strong>
-                                  {citation.title}
-                                </strong>
-
-                              </div>
-
-
-                              <small>
-                                {Math.round(
-                                  citation.score * 100,
-                                )}
-                                % match
-                              </small>
-
-                            </div>
-                          ),
-                        )}
-
-                      </div>
-                    )}
-
-                  </div>
-
-                </article>
-              ))}
-
-
-            {isAsking && (
-              <article className="message-row assistant">
-
-                <div className="message-avatar">
-                  S
-                </div>
-
-
-                <div className="message-content">
-
-                  <span className="message-author">
-                    Secure RAG
-                  </span>
-
-
-                  <div className="typing-indicator">
-
-                    <span />
-                    <span />
-                    <span />
-
                   </div>
 
                 </div>
+              )}
 
-              </article>
-            )}
+              <div
+                ref={messagesEndRef}
+              />
 
-
-            <div ref={messagesEndRef} />
+            </div>
 
           </div>
 
-        </div>
+          {/* Suggestions */}
+          {messages.length === 1 &&
+            !isAsking && (
+              <div className="chat-suggestions">
 
-
-        <footer className="composer-section">
-
-          {messages.length === 1
-            && !activeConversationId
-            && suggestions.length > 0
-            && (
-              <div className="suggestions">
-
-                {suggestions.map((suggestion) => (
-                  <button
-                    type="button"
-                    key={suggestion}
-                    onClick={() =>
-                      setQuestion(suggestion)
-                    }
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+                {suggestions.map(
+                  (suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() =>
+                        useSuggestion(
+                          suggestion
+                        )
+                      }
+                    >
+                      {suggestion}
+                    </button>
+                  )
+                )}
 
               </div>
             )}
 
-
+          {/* Composer */}
           <form
-            className="composer"
+            className="chat-composer"
             onSubmit={handleSubmit}
           >
 
             <textarea
               value={question}
               onChange={(event) =>
-                setQuestion(event.target.value)
+                setQuestion(
+                  event.target.value
+                )
               }
+              placeholder="Ask a question about your authorized documents..."
+              rows={1}
+              disabled={isAsking}
               onKeyDown={(event) => {
                 if (
-                  event.key === "Enter"
-                  && !event.shiftKey
+                  event.key === "Enter" &&
+                  !event.shiftKey
                 ) {
                   event.preventDefault();
 
-                  event.currentTarget.form
-                    ?.requestSubmit();
+                  handleSubmit(event);
                 }
               }}
-              maxLength={1000}
-              rows={1}
-              placeholder="Ask an authorized question..."
-              aria-label="Question"
-              disabled={
-                isAsking || isLoadingConversation
-              }
             />
-
 
             <button
               type="submit"
               disabled={
+                isAsking ||
                 !question.trim()
-                || isAsking
-                || isLoadingConversation
               }
-              aria-label="Send question"
             >
-              ↑
+              {isAsking
+                ? "..."
+                : "Send"}
             </button>
 
           </form>
 
+        </section>
 
-          <div className="composer-details">
-
-            <span>
-              Answers use authorized evidence only.
-            </span>
-
-            <span>
-              {question.length}/1000
-            </span>
-
-          </div>
-
-        </footer>
-
-      </section>
-
-    </main>
+      </main>
+    </AppLayout>
   );
 }
-
 
 export default Chat;

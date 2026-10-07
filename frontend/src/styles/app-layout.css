@@ -1,0 +1,594 @@
+/* =========================================
+   APP LAYOUT
+   Colors come from theme.css
+========================================= */
+
+.app-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+
+  background: var(--chat-bg);
+  color: var(--chat-text);
+}
+
+
+/* =========================================
+   SIDEBAR
+========================================= */
+
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 280px;
+  height: 100vh;
+  height: 100dvh;
+
+  padding: 22px 16px 16px;
+
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+
+  overflow-y: auto;
+  z-index: 100;
+}
+
+
+/* =========================================
+   BRAND
+========================================= */
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 4px 8px 22px;
+}
+
+.app-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 38px;
+  height: 38px;
+
+  border-radius: 10px;
+
+  background: var(--sidebar-brand-bg);
+  color: #ffffff;
+
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.app-brand strong {
+  display: block;
+
+  color: var(--sidebar-text-strong);
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.app-brand span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: var(--sidebar-muted);
+
+  font-size: 12px;
+}
+
+
+/* =========================================
+   NAVIGATION
+========================================= */
+
+.app-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-nav-label {
+  margin: 14px 8px 7px;
+
+  color: var(--sidebar-label);
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.app-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  min-height: 42px;
+  padding: 0 11px;
+
+  border-radius: 9px;
+
+  color: var(--sidebar-text);
+
+  font-size: 14px;
+  font-weight: 600;
+
+  text-decoration: none;
+
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.app-nav-link:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-strong);
+}
+
+.app-nav-link.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+}
+
+.app-nav-icon {
+  width: 20px;
+
+  text-align: center;
+  font-size: 15px;
+}
+
+
+/* =========================================
+   CHAT HISTORY
+========================================= */
+
+.app-history-section {
+  margin-top: 5px;
+}
+
+.app-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: 7px;
+}
+
+.app-history-header .app-nav-label {
+  margin-bottom: 7px;
+}
+
+.app-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+  margin-right: 5px;
+
+  border: 0;
+  border-radius: 6px;
+
+  background: transparent;
+  color: var(--sidebar-muted);
+
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.app-history-toggle:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-strong);
+}
+
+
+/* =========================================
+   NEW CHAT
+========================================= */
+
+.app-new-chat-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  width: 100%;
+  margin-bottom: 9px;
+  padding: 9px 10px;
+
+  border: 1px solid var(--chat-accent-border);
+  border-radius: 8px;
+
+  background: var(--chat-accent-soft);
+  color: var(--chat-accent-text);
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.app-new-chat-button:hover {
+  background: var(--chat-accent-soft-hover);
+  border-color: var(--chat-accent-border-hover);
+}
+
+.app-new-chat-button span {
+  font-size: 16px;
+}
+
+
+/* =========================================
+   HISTORY LIST
+========================================= */
+
+.app-history-content {
+  padding: 0 2px;
+}
+
+.app-history-group {
+  margin-bottom: 10px;
+}
+
+.app-history-group-title {
+  padding: 5px 8px;
+
+  color: var(--sidebar-label);
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  min-height: 38px;
+  padding: 7px 8px;
+
+  border-radius: 8px;
+
+  color: var(--sidebar-text);
+
+  cursor: pointer;
+
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.app-history-item:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-strong);
+}
+
+.app-history-item.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+}
+
+.app-history-item-icon {
+  flex-shrink: 0;
+
+  width: 17px;
+
+  color: var(--sidebar-icon);
+  font-size: 12px;
+}
+
+.app-history-item.active .app-history-item-icon {
+  color: var(--sidebar-active-text);
+}
+
+.app-history-item-title {
+  flex: 1;
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.app-history-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 22px;
+  height: 22px;
+  padding: 0;
+
+  border: 0;
+  border-radius: 5px;
+
+  background: transparent;
+  color: var(--sidebar-muted);
+
+  font-size: 15px;
+  opacity: 0;
+  cursor: pointer;
+
+  transition: opacity 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.app-history-item:hover .app-history-delete,
+.app-history-delete:focus-visible {
+  opacity: 1;
+}
+
+.app-history-delete:hover {
+  background: var(--sidebar-danger-bg);
+  color: var(--sidebar-danger-text);
+}
+
+.app-history-empty {
+  padding: 14px 8px;
+
+  text-align: center;
+  color: var(--sidebar-muted);
+}
+
+.app-history-empty span {
+  display: block;
+
+  margin-bottom: 5px;
+  font-size: 18px;
+}
+
+.app-history-empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+
+/* =========================================
+   ADMINISTRATION
+========================================= */
+
+.app-admin-label {
+  margin-top: 16px;
+}
+
+
+/* =========================================
+   SECURITY PANEL
+========================================= */
+
+.app-security-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  margin-top: auto;
+  margin-bottom: 14px;
+  padding: 12px;
+
+  border: 1px solid var(--sidebar-panel-border);
+  border-radius: 10px;
+
+  background: var(--sidebar-panel-bg);
+}
+
+.app-security-dot {
+  flex-shrink: 0;
+
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+
+  border-radius: 50%;
+
+  background: var(--sidebar-status);
+  box-shadow: 0 0 8px var(--sidebar-status-glow);
+}
+
+.app-security-panel strong {
+  display: block;
+
+  color: var(--sidebar-text-strong);
+  font-size: 12px;
+}
+
+.app-security-panel p {
+  margin: 4px 0 0;
+
+  color: var(--sidebar-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
+/* =========================================
+   PROFILE
+========================================= */
+
+.app-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 12px 5px;
+
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.app-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  background: var(--chat-accent-soft);
+  color: var(--chat-accent-text);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-profile-info {
+  min-width: 0;
+}
+
+.app-profile-info strong,
+.app-profile-info span,
+.app-profile-info small {
+  display: block;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-profile-info strong {
+  color: var(--sidebar-text-strong);
+  font-size: 13px;
+}
+
+.app-profile-info span {
+  margin-top: 2px;
+
+  color: var(--sidebar-muted);
+  font-size: 12px;
+}
+
+.app-profile-info small {
+  margin-top: 2px;
+
+  color: var(--sidebar-role);
+  font-size: 12px;
+}
+
+
+/* =========================================
+   THEME TOGGLE + LOGOUT
+========================================= */
+
+.app-sidebar .theme-toggle {
+  margin-bottom: 8px;
+}
+
+.app-logout-button {
+  width: 100%;
+  padding: 9px;
+
+  border: 1px solid var(--sidebar-btn-border);
+  border-radius: 8px;
+
+  background: transparent;
+  color: var(--sidebar-text);
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.app-logout-button:hover {
+  background: var(--sidebar-hover);
+  border-color: var(--sidebar-btn-hover-border);
+  color: var(--sidebar-text-strong);
+}
+
+
+/* =========================================
+   KEYBOARD FOCUS
+========================================= */
+
+.app-nav-link:focus-visible,
+.app-history-item:focus-visible,
+.app-history-toggle:focus-visible,
+.app-new-chat-button:focus-visible,
+.app-logout-button:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 2px;
+}
+
+
+/* =========================================
+   CONTENT
+========================================= */
+
+.app-content {
+  width: calc(100% - 280px);
+  min-width: 0;
+  min-height: 100vh;
+
+  margin-left: 280px;
+
+  overflow: hidden;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+  .app-sidebar {
+    width: 230px;
+  }
+
+  .app-content {
+    width: calc(100% - 230px);
+    margin-left: 230px;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-layout {
+    display: block;
+  }
+
+  .app-sidebar {
+    position: relative;
+
+    width: 100%;
+    height: auto;
+    max-height: none;
+
+    border-right: 0;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .app-content {
+    width: 100%;
+    margin-left: 0;
+    overflow: visible;
+  }
+
+  .app-security-panel {
+    margin-top: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar * {
+    transition: none !important;
+  }
+}
