@@ -6,13 +6,14 @@ import {
 
 import Audit from "./pages/Audit";
 import Chat from "./pages/Chat";
+import Documents from "./pages/Documents";
+import AdminUsers from "./pages/AdminUsers";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
 import {
   isAuthenticated,
 } from "./services/api";
-import Documents from "./pages/Documents";
 
 function ProtectedRoute({ children }) {
   if (!isAuthenticated()) {
@@ -27,10 +28,10 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-
 function App() {
   return (
     <Routes>
+
       <Route
         path="/"
         element={
@@ -65,10 +66,28 @@ function App() {
       />
 
       <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <Documents />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/audit"
         element={
           <ProtectedRoute>
             <Audit />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute>
+            <AdminUsers />
           </ProtectedRoute>
         }
       />
@@ -82,18 +101,9 @@ function App() {
           />
         }
       />
-      <Route
-  path="/documents"
-  element={
-    <ProtectedRoute>
-      <Documents />
-    </ProtectedRoute>
-  }
-/>
+
     </Routes>
-    
   );
 }
-
 
 export default App;

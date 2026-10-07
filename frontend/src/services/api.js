@@ -126,6 +126,32 @@ async function apiRequest(
 
   return data;
 }
+export function getUsers() {
+  return apiRequest("/api/v1/users", {
+    method: "GET",
+    requiresAuth: true,
+  });
+}
+
+export function updateUserRole(userId, role) {
+  return apiRequest(`/api/v1/users/${encodeURIComponent(userId)}/role`, {
+    method: "PATCH",
+    body: {
+      role,
+    },
+    requiresAuth: true,
+  });
+}
+
+export function updateUserStatus(userId, isActive) {
+  return apiRequest(`/api/v1/users/${encodeURIComponent(userId)}/status`, {
+    method: "PATCH",
+    body: {
+      is_active: isActive,
+    },
+    requiresAuth: true,
+  });
+}
 
 
 // ============================================================

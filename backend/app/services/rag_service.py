@@ -191,10 +191,7 @@ def answer_question(
         )
     )
 
-    retrieval_query = build_retrieval_query(
-        question=question,
-        conversation_history=safe_history,
-    )
+    retrieval_query = question
 
     authorized_chunks = (
         retrieve_authorized_chunks(

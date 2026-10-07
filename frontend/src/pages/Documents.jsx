@@ -1,5 +1,6 @@
+import AppLayout from "../components/AppLayout";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
   getCurrentUser,
@@ -8,10 +9,14 @@ import {
   updateDocument,
   replaceDocumentPdf,
   deleteDocument,
-  logoutUser,
 } from "../services/api";
 
-const MANAGEMENT_ROLES = ["executive", "admin"];
+import "../styles/documents.css";
+
+const MANAGEMENT_ROLES = [
+  "executive",
+  "admin",
+];
 
 const AVAILABLE_ROLES = [
   {
@@ -32,7 +37,20 @@ const AVAILABLE_ROLES = [
   },
 ];
 
+function formatRole(role) {
+  if (!role) {
+    return "Unknown";
+  }
+
+  return (
+    role.charAt(0).toUpperCase() +
+    role.slice(1)
+  );
+}
+
 export default function Documents() {
+  const navigate = useNavigate();
+
   // =====================================================
   // USER + DOCUMENT STATE
   // =====================================================
@@ -67,7 +85,6 @@ export default function Documents() {
     useState(null);
 
   const [editTitle, setEditTitle] = useState("");
-
   const [editDepartment, setEditDepartment] =
     useState("");
 
@@ -105,11 +122,13 @@ export default function Documents() {
     try {
       const currentUser = await getCurrentUser();
 
-      console.log("Current user:", currentUser);
-
       setUser(currentUser);
 
-      if (!MANAGEMENT_ROLES.includes(currentUser.role)) {
+      if (
+        !MANAGEMENT_ROLES.includes(
+          currentUser.role,
+        )
+      ) {
         setError(
           "You do not have permission to manage documents.",
         );
@@ -119,10 +138,13 @@ export default function Documents() {
 
       await loadDocumentsOnly();
     } catch (err) {
-      console.error(
-        "Failed to load document page:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
 
       setError(
         err.message ||
@@ -134,21 +156,12 @@ export default function Documents() {
   }
 
   // =====================================================
-  // LOAD DOCUMENTS ONLY
+  // LOAD DOCUMENTS
   // =====================================================
 
   async function loadDocumentsOnly() {
     try {
-      console.log(
-        "Refreshing document list...",
-      );
-
       const response = await getDocuments();
-
-      console.log(
-        "Documents API response:",
-        response,
-      );
 
       let documentList = [];
 
@@ -168,17 +181,15 @@ export default function Documents() {
         documentList = response.data;
       }
 
-      console.log(
-        "Documents extracted:",
-        documentList,
-      );
-
       setDocuments(documentList);
     } catch (err) {
-      console.error(
-        "Failed to refresh documents:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
 
       setError(
         err.message ||
@@ -188,11 +199,24 @@ export default function Documents() {
   }
 
   // =====================================================
-  // UPLOAD - ROLE CHANGE
+  // ROLE HELPERS
   // =====================================================
 
   function handleRoleChange(role) {
     setAllowedRoles((currentRoles) => {
+      if (currentRoles.includes(role)) {
+        return currentRoles.filter(
+          (currentRole) =>
+            currentRole !== role,
+        );
+      }
+
+      return [...currentRoles, role];
+    });
+  }
+
+  function handleEditRoleChange(role) {
+    setEditAllowedRoles((currentRoles) => {
       if (currentRoles.includes(role)) {
         return currentRoles.filter(
           (currentRole) =>
@@ -222,13 +246,8 @@ export default function Documents() {
       "application/pdf"
     ) {
       setFile(null);
-
-      setError(
-        "Only PDF files are allowed.",
-      );
-
+      setError("Only PDF files are allowed.");
       event.target.value = "";
-
       return;
     }
 
@@ -277,28 +296,17 @@ export default function Documents() {
     setUploading(true);
 
     try {
-      console.log(
-        "Uploading document...",
-      );
-
-      const response =
-        await uploadDocument({
-          title: title.trim(),
-          department: department.trim(),
-          allowedRoles,
-          file,
-        });
-
-      console.log(
-        "Upload response:",
-        response,
-      );
+      const response = await uploadDocument({
+        title: title.trim(),
+        department: department.trim(),
+        allowedRoles,
+        file,
+      });
 
       setSuccess(
         `Document uploaded successfully. Status: ${response.status}`,
       );
 
-      // Clear form
       setTitle("");
       setDepartment("");
       setAllowedRoles([]);
@@ -313,13 +321,14 @@ export default function Documents() {
         fileInput.value = "";
       }
 
-      // Refresh list
       await loadDocumentsOnly();
     } catch (err) {
-      console.error(
-        "Document upload failed:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
 
       setError(
         err.message ||
@@ -335,9 +344,7 @@ export default function Documents() {
   // =====================================================
 
   function startEdit(documentItem) {
-    setEditingDocument(
-      documentItem,
-    );
+    setEditingDocument(documentItem);
 
     setEditTitle(
       documentItem.title || "",
@@ -365,43 +372,16 @@ export default function Documents() {
 
   function cancelEdit() {
     setEditingDocument(null);
-
     setEditTitle("");
     setEditDepartment("");
     setEditAllowedRoles([]);
   }
 
   // =====================================================
-  // EDIT ROLE CHANGE
-  // =====================================================
-
-  function handleEditRoleChange(role) {
-    setEditAllowedRoles(
-      (currentRoles) => {
-        if (
-          currentRoles.includes(role)
-        ) {
-          return currentRoles.filter(
-            (currentRole) =>
-              currentRole !== role,
-          );
-        }
-
-        return [
-          ...currentRoles,
-          role,
-        ];
-      },
-    );
-  }
-
-  // =====================================================
   // UPDATE DOCUMENT
   // =====================================================
 
-  async function handleUpdateDocument(
-    event,
-  ) {
+  async function handleUpdateDocument(event) {
     event.preventDefault();
 
     if (!editingDocument) {
@@ -425,10 +405,7 @@ export default function Documents() {
       return;
     }
 
-    if (
-      editAllowedRoles.length ===
-      0
-    ) {
+    if (editAllowedRoles.length === 0) {
       setError(
         "Please select at least one allowed role.",
       );
@@ -438,27 +415,15 @@ export default function Documents() {
     setSavingEdit(true);
 
     try {
-      console.log(
-        "Updating document:",
+      await updateDocument(
         editingDocument.id,
-      );
-
-      const response =
-        await updateDocument(
-          editingDocument.id,
-          {
-            title:
-              editTitle.trim(),
-            department:
-              editDepartment.trim(),
-            allowedRoles:
-              editAllowedRoles,
-          },
-        );
-
-      console.log(
-        "Update response:",
-        response,
+        {
+          title: editTitle.trim(),
+          department:
+            editDepartment.trim(),
+          allowedRoles:
+            editAllowedRoles,
+        },
       );
 
       setSuccess(
@@ -469,10 +434,12 @@ export default function Documents() {
 
       await loadDocumentsOnly();
     } catch (err) {
-      console.error(
-        "Document update failed:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
 
       setError(
         err.message ||
@@ -494,7 +461,6 @@ export default function Documents() {
     const selectedFile =
       event.target.files?.[0];
 
-    // Allow selecting the same file again
     event.target.value = "";
 
     if (!selectedFile) {
@@ -528,21 +494,11 @@ export default function Documents() {
     );
 
     try {
-      console.log(
-        "Replacing PDF:",
-        documentItem.id,
-      );
-
       const response =
         await replaceDocumentPdf(
           documentItem.id,
           selectedFile,
         );
-
-      console.log(
-        "Replace response:",
-        response,
-      );
 
       setSuccess(
         `PDF replaced successfully. Status: ${response.status}`,
@@ -550,19 +506,19 @@ export default function Documents() {
 
       await loadDocumentsOnly();
     } catch (err) {
-      console.error(
-        "PDF replacement failed:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
 
       setError(
         err.message ||
           "Failed to replace PDF.",
       );
     } finally {
-      setReplacingDocumentId(
-        null,
-      );
+      setReplacingDocumentId(null);
     }
   }
 
@@ -590,11 +546,6 @@ export default function Documents() {
     );
 
     try {
-      console.log(
-        "Deleting document:",
-        documentItem.id,
-      );
-
       await deleteDocument(
         documentItem.id,
       );
@@ -612,10 +563,12 @@ export default function Documents() {
 
       await loadDocumentsOnly();
     } catch (err) {
-      console.error(
-        "Document deletion failed:",
-        err,
-      );
+      if (err.status === 401) {
+        navigate("/login", {
+          replace: true,
+        });
+        return;
+      }
 
       setError(
         err.message ||
@@ -627,12 +580,14 @@ export default function Documents() {
   }
 
   // =====================================================
-  // LOGOUT
+  // ACTION LOCK
   // =====================================================
 
-  function handleLogout() {
-    logoutUser();
-    window.location.href = "/login";
+  function isDocumentBusy(documentId) {
+    return (
+      replacingDocumentId === documentId ||
+      deletingDocumentId === documentId
+    );
   }
 
   // =====================================================
@@ -641,74 +596,63 @@ export default function Documents() {
 
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <p>
-            Loading document management...
-          </p>
-        </div>
-      </div>
+      <AppLayout>
+        <main className="documents-page">
+          <div className="documents-loading">
+            <div className="documents-spinner" />
+
+            <p>
+              Loading document management...
+            </p>
+          </div>
+        </main>
+      </AppLayout>
     );
   }
 
   // =====================================================
-  // USER ERROR
-  // =====================================================
-
-  if (!user) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <h2>
-            Document Management
-          </h2>
-
-          <p>
-            {error ||
-              "Unable to load your account."}
-          </p>
-
-          <Link
-            to="/chat"
-            style={styles.linkButton}
-          >
-            Back to Chat
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // =====================================================
-  // PERMISSION CHECK
+  // ACCESS DENIED
   // =====================================================
 
   if (
+    !user ||
     !MANAGEMENT_ROLES.includes(
       user.role,
     )
   ) {
     return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <h2>
-            Access Denied
-          </h2>
+      <AppLayout>
+        <main className="documents-page">
+          <section className="documents-access-card">
+            <div className="documents-access-icon">
+              !
+            </div>
 
-          <p>
-            Only Executive and Admin
-            users can manage
-            documents.
-          </p>
+            <p className="documents-eyebrow">
+              ACCESS RESTRICTED
+            </p>
 
-          <Link
-            to="/chat"
-            style={styles.linkButton}
-          >
-            Back to Chat
-          </Link>
-        </div>
-      </div>
+            <h1>
+              Document Management
+            </h1>
+
+            <p>
+              {error ||
+                "Only Executive and Admin users can manage documents."}
+            </p>
+
+            <button
+              type="button"
+              className="documents-primary-button"
+              onClick={() =>
+                navigate("/chat")
+              }
+            >
+              ← Back to Chat
+            </button>
+          </section>
+        </main>
+      </AppLayout>
     );
   }
 
@@ -717,212 +661,170 @@ export default function Documents() {
   // =====================================================
 
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
+    <AppLayout>
+      <main className="documents-page">
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div style={styles.header}>
+        {/* PAGE HEADER */}
+        <header className="documents-header">
           <div>
-            <h1 style={styles.heading}>
+            <p className="documents-eyebrow">
+              KNOWLEDGE BASE
+            </p>
+
+            <h1>
               Document Management
             </h1>
 
-            <p style={styles.subtitle}>
+            <p className="documents-subtitle">
               Upload and manage company
-              documents for the RAG
-              knowledge base.
+              documents for the secure
+              RAG knowledge base.
             </p>
+          </div>
 
-            <p style={styles.userInfo}>
-              Logged in as{" "}
+          <div className="documents-header-status">
+            <span className="documents-status-dot" />
+
+            <div>
               <strong>
-                {user.full_name ||
-                  user.email}
-              </strong>{" "}
-              ({user.role})
-            </p>
+                {formatRole(user.role)} access
+              </strong>
+
+              <span>
+                Document management enabled
+              </span>
+            </div>
           </div>
+        </header>
 
-          <div
-            style={
-              styles.headerButtons
-            }
-          >
-            <Link
-              to="/chat"
-              style={
-                styles.secondaryButton
-              }
-            >
-              Back to Chat
-            </Link>
-
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              style={
-                styles.logoutButton
-              }
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-
-        {/* =================================================
-            MESSAGES
-        ================================================= */}
+        {/* MESSAGES */}
 
         {error && (
-          <div style={styles.error}>
-            {error}
+          <div className="documents-message documents-error">
+            <span>!</span>
+
+            <div>
+              <strong>
+                Something went wrong
+              </strong>
+
+              <p>{error}</p>
+            </div>
           </div>
         )}
 
         {success && (
-          <div
-            style={
-              styles.success
-            }
-          >
-            {success}
+          <div className="documents-message documents-success">
+            <span>✓</span>
+
+            <div>
+              <strong>
+                Operation completed
+              </strong>
+
+              <p>{success}</p>
+            </div>
           </div>
         )}
 
-        {/* =================================================
-            UPLOAD CARD
-        ================================================= */}
+        {/* UPLOAD CARD */}
 
-        <div style={styles.card}>
-          <h2
-            style={
-              styles.cardTitle
-            }
-          >
-            Add New Document
-          </h2>
+        <section className="documents-card">
+          <div className="documents-card-header">
+            <div>
+              <p className="documents-section-label">
+                NEW DOCUMENT
+              </p>
 
-          <form
-            onSubmit={
-              handleUpload
-            }
-          >
+              <h2>
+                Add Document
+              </h2>
 
-            {/* TITLE */}
-
-            <div
-              style={
-                styles.formGroup
-              }
-            >
-              <label
-                style={
-                  styles.label
-                }
-              >
-                Document Title
-              </label>
-
-              <input
-                type="text"
-                value={title}
-                onChange={(
-                  event,
-                ) =>
-                  setTitle(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Example: Employee Leave Policy"
-                maxLength={200}
-                style={
-                  styles.input
-                }
-              />
+              <p>
+                Upload a PDF and define which
+                roles can retrieve information
+                from it.
+              </p>
             </div>
 
-            {/* DEPARTMENT */}
+            <div className="documents-card-icon">
+              +
+            </div>
+          </div>
 
-            <div
-              style={
-                styles.formGroup
-              }
-            >
-              <label
-                style={
-                  styles.label
-                }
-              >
-                Department
-              </label>
+          <form
+            className="documents-form"
+            onSubmit={handleUpload}
+          >
+            <div className="documents-form-grid">
 
-              <input
-                type="text"
-                value={
-                  department
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setDepartment(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Example: HR"
-                maxLength={100}
-                style={
-                  styles.input
-                }
-              />
+              {/* TITLE */}
+
+              <div className="documents-form-group">
+                <label htmlFor="document-title">
+                  Document Title
+                </label>
+
+                <input
+                  id="document-title"
+                  type="text"
+                  value={title}
+                  onChange={(event) =>
+                    setTitle(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Employee Leave Policy"
+                  maxLength={200}
+                />
+              </div>
+
+              {/* DEPARTMENT */}
+
+              <div className="documents-form-group">
+                <label htmlFor="document-department">
+                  Department
+                </label>
+
+                <input
+                  id="document-department"
+                  type="text"
+                  value={department}
+                  onChange={(event) =>
+                    setDepartment(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="HR"
+                  maxLength={100}
+                />
+              </div>
             </div>
 
             {/* ROLES */}
 
-            <div
-              style={
-                styles.formGroup
-              }
-            >
-              <label
-                style={
-                  styles.label
-                }
-              >
+            <div className="documents-form-group">
+              <label>
                 Allowed Roles
               </label>
 
-              <p
-                style={
-                  styles.helpText
-                }
-              >
-                Select which roles
-                are allowed to
-                retrieve
-                information from
-                this document.
+              <p className="documents-help">
+                Only selected roles will be
+                allowed to retrieve content
+                from this document.
               </p>
 
-              <div
-                style={
-                  styles.rolesContainer
-                }
-              >
+              <div className="documents-role-options">
                 {AVAILABLE_ROLES.map(
                   (role) => (
                     <label
-                      key={
-                        role.value
-                      }
-                      style={
-                        styles.checkboxLabel
+                      key={role.value}
+                      className={
+                        allowedRoles.includes(
+                          role.value,
+                        )
+                          ? "documents-role-option selected"
+                          : "documents-role-option"
                       }
                     >
                       <input
@@ -938,9 +840,7 @@ export default function Documents() {
                       />
 
                       <span>
-                        {
-                          role.label
-                        }
+                        {role.label}
                       </span>
                     </label>
                   ),
@@ -950,219 +850,149 @@ export default function Documents() {
 
             {/* PDF */}
 
-            <div
-              style={
-                styles.formGroup
-              }
-            >
+            <div className="documents-form-group">
+              <label htmlFor="document-file">
+                PDF Document
+              </label>
+
               <label
-                style={
-                  styles.label
+                htmlFor="document-file"
+                className={
+                  file
+                    ? "documents-file-drop selected"
+                    : "documents-file-drop"
                 }
               >
-                PDF Document
+                <span className="documents-file-icon">
+                  ↑
+                </span>
+
+                <span>
+                  <strong>
+                    {file
+                      ? file.name
+                      : "Choose a PDF file"}
+                  </strong>
+
+                  <small>
+                    {file
+                      ? "PDF selected and ready to upload"
+                      : "PDF files only"}
+                  </small>
+                </span>
               </label>
 
               <input
                 id="document-file"
                 type="file"
                 accept=".pdf,application/pdf"
-                onChange={
-                  handleFileChange
-                }
-                style={
-                  styles.fileInput
-                }
+                onChange={handleFileChange}
+                className="documents-hidden-file"
               />
-
-              {file && (
-                <p
-                  style={
-                    styles.fileInfo
-                  }
-                >
-                  Selected:{" "}
-                  <strong>
-                    {file.name}
-                  </strong>
-                </p>
-              )}
             </div>
 
-            {/* UPLOAD BUTTON */}
+            {/* UPLOAD */}
 
-            <button
-              type="submit"
-              disabled={uploading}
-              style={{
-                ...styles.uploadButton,
-                opacity:
-                  uploading
-                    ? 0.7
-                    : 1,
-              }}
-            >
-              {uploading
-                ? "Uploading and indexing..."
-                : "Upload Document"}
-            </button>
-          </form>
-        </div>
-
-        {/* =================================================
-            DOCUMENT LIST
-        ================================================= */}
-
-        <div style={styles.card}>
-          <div
-            style={
-              styles.documentsHeader
-            }
-          >
-            <div>
-              <h2
-                style={
-                  styles.cardTitle
-                }
+            <div className="documents-form-actions">
+              <button
+                type="submit"
+                className="documents-primary-button"
+                disabled={uploading}
               >
+                {uploading ? (
+                  <>
+                    <span className="documents-button-spinner" />
+                    Uploading & indexing...
+                  </>
+                ) : (
+                  "↑ Upload Document"
+                )}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {/* DOCUMENT LIST */}
+
+        <section className="documents-card">
+          <div className="documents-card-header">
+            <div>
+              <p className="documents-section-label">
+                KNOWLEDGE BASE
+              </p>
+
+              <h2>
                 Uploaded Documents
               </h2>
 
-              <p
-                style={
-                  styles.helpText
-                }
-              >
-                Documents currently
-                registered in the
-                system.
+              <p>
+                Documents currently registered
+                in the system.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={
-                loadDocumentsOnly
-              }
-              style={
-                styles.refreshButton
+              className="documents-refresh-button"
+              onClick={loadDocumentsOnly}
+              disabled={
+                uploading ||
+                savingEdit ||
+                replacingDocumentId !== null ||
+                deletingDocumentId !== null
               }
             >
-              🔄 Refresh
+              ↻ Refresh
             </button>
           </div>
 
-          {/* COUNT */}
+          <div className="documents-count">
+            <strong>
+              {documents.length}
+            </strong>
 
-          <div
-            style={
-              styles.documentCount
-            }
-          >
-            {documents.length}{" "}
-            document
-            {documents.length !==
-            1
-              ? "s"
-              : ""}{" "}
-            registered
+            <span>
+              document
+              {documents.length !== 1
+                ? "s"
+                : ""}{" "}
+              registered
+            </span>
           </div>
 
           {/* EMPTY */}
 
-          {documents.length ===
-          0 ? (
-            <div
-              style={
-                styles.empty
-              }
-            >
-              No documents have
-              been uploaded yet.
+          {documents.length === 0 ? (
+            <div className="documents-empty">
+              <div className="documents-empty-icon">
+                📄
+              </div>
+
+              <h3>
+                No documents yet
+              </h3>
+
+              <p>
+                Upload your first PDF to
+                create a searchable knowledge
+                source.
+              </p>
             </div>
           ) : (
-            <div
-              style={
-                styles.tableWrapper
-              }
-            >
-              <table
-                style={
-                  styles.table
-                }
-              >
-
-                {/* TABLE HEADER */}
+            <div className="documents-table-wrapper">
+              <table className="documents-table">
 
                 <thead>
                   <tr>
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Title
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Department
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      File
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Roles
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Status
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Pages
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Chunks
-                    </th>
-
-                    <th
-                      style={
-                        styles.th
-                      }
-                    >
-                      Actions
-                    </th>
+                    <th>Document</th>
+                    <th>Department</th>
+                    <th>Access</th>
+                    <th>Status</th>
+                    <th>Pages</th>
+                    <th>Chunks</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-
-                {/* TABLE BODY */}
 
                 <tbody>
                   {documents.map(
@@ -1173,6 +1003,11 @@ export default function Documents() {
                             "",
                         ).toLowerCase();
 
+                      const busy =
+                        isDocumentBusy(
+                          documentItem.id,
+                        );
+
                       return (
                         <tr
                           key={
@@ -1180,98 +1015,72 @@ export default function Documents() {
                           }
                         >
 
-                          {/* TITLE */}
+                          {/* DOCUMENT */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            <strong>
-                              {documentItem.title ||
-                                "Untitled document"}
-                            </strong>
+                          <td>
+                            <div className="documents-name-cell">
+                              <div className="documents-file-avatar">
+                                PDF
+                              </div>
+
+                              <div>
+                                <strong>
+                                  {documentItem.title ||
+                                    "Untitled document"}
+                                </strong>
+
+                                <span>
+                                  {documentItem.original_file_name ||
+                                    "No filename"}
+                                </span>
+
+                                {documentItem.file_size && (
+                                  <small>
+                                    {(
+                                      documentItem.file_size /
+                                      1024
+                                    ).toFixed(
+                                      1,
+                                    )}{" "}
+                                    KB
+                                  </small>
+                                )}
+                              </div>
+                            </div>
                           </td>
 
                           {/* DEPARTMENT */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            {documentItem.department ||
-                              "-"}
-                          </td>
-
-                          {/* FILE */}
-
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            <div>
-                              {documentItem.original_file_name ||
+                          <td>
+                            <span className="documents-department">
+                              {documentItem.department ||
                                 "-"}
-                            </div>
-
-                            {documentItem.file_size && (
-                              <small
-                                style={
-                                  styles.fileSize
-                                }
-                              >
-                                {(
-                                  documentItem.file_size /
-                                  1024
-                                ).toFixed(
-                                  1,
-                                )}{" "}
-                                KB
-                              </small>
-                            )}
+                            </span>
                           </td>
 
-                          {/* ROLES */}
+                          {/* ACCESS */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            <div
-                              style={
-                                styles.roleList
-                              }
-                            >
+                          <td>
+                            <div className="documents-role-list">
                               {Array.isArray(
                                 documentItem.allowed_roles,
                               ) &&
-                              documentItem
-                                .allowed_roles
-                                .length >
-                                0 ? (
+                              documentItem.allowed_roles
+                                .length > 0 ? (
                                 documentItem.allowed_roles.map(
-                                  (
-                                    role,
-                                  ) => (
+                                  (role) => (
                                     <span
-                                      key={
-                                        role
-                                      }
-                                      style={
-                                        styles.roleBadge
-                                      }
+                                      key={role}
+                                      className="documents-role-badge"
                                     >
-                                      {
-                                        role
-                                      }
+                                      {formatRole(
+                                        role,
+                                      )}
                                     </span>
                                   ),
                                 )
                               ) : (
-                                <span>
+                                <span className="documents-muted">
                                   -
                                 </span>
                               )}
@@ -1280,96 +1089,78 @@ export default function Documents() {
 
                           {/* STATUS */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
+                          <td>
                             <span
-                              style={{
-                                ...styles.statusBadge,
-
-                                ...(status ===
-                                "ready"
-                                  ? styles.readyStatus
-                                  : {}),
-
-                                ...(status ===
-                                "failed"
-                                  ? styles.failedStatus
-                                  : {}),
-                              }}
+                              className={
+                                status === "ready"
+                                  ? "documents-status ready"
+                                  : status === "failed"
+                                    ? "documents-status failed"
+                                    : "documents-status processing"
+                              }
                             >
-                              {documentItem.status ||
-                                "unknown"}
+                              <span />
+
+                              {formatRole(
+                                status ||
+                                  "unknown",
+                              )}
                             </span>
                           </td>
 
                           {/* PAGES */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            {documentItem.page_count ??
-                              "-"}
+                          <td>
+                            <span className="documents-number">
+                              {documentItem.page_count ??
+                                "-"}
+                            </span>
                           </td>
 
                           {/* CHUNKS */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            {documentItem.chunks_indexed ??
-                              "-"}
+                          <td>
+                            <span className="documents-number">
+                              {documentItem.chunks_indexed ??
+                                "-"}
+                            </span>
                           </td>
 
                           {/* ACTIONS */}
 
-                          <td
-                            style={
-                              styles.td
-                            }
-                          >
-                            <div
-                              style={
-                                styles.actionsContainer
-                              }
-                            >
+                          <td>
+                            <div className="documents-actions">
 
                               {/* EDIT */}
 
                               <button
                                 type="button"
+                                className="documents-action-button edit"
                                 onClick={() =>
                                   startEdit(
                                     documentItem,
                                   )
                                 }
-                                style={
-                                  styles.editButton
+                                disabled={
+                                  busy ||
+                                  uploading ||
+                                  savingEdit
                                 }
                               >
-                                ✏️ Edit
+                                Edit
                               </button>
 
-                              {/* REPLACE PDF */}
+                              {/* REPLACE */}
 
                               <label
-                                style={{
-                                  ...styles.replaceButton,
-
-                                  opacity:
-                                    replacingDocumentId ===
+                                className={
+                                  busy &&
+                                  replacingDocumentId ===
                                     documentItem.id
-                                      ? 0.6
-                                      : 1,
-                                }}
+                                    ? "documents-action-button replace disabled"
+                                    : "documents-action-button replace"
+                                }
                               >
-                                📄{" "}
                                 {replacingDocumentId ===
                                 documentItem.id
                                   ? "Replacing..."
@@ -1379,8 +1170,9 @@ export default function Documents() {
                                   type="file"
                                   accept=".pdf,application/pdf"
                                   disabled={
-                                    replacingDocumentId ===
-                                    documentItem.id
+                                    busy ||
+                                    uploading ||
+                                    savingEdit
                                   }
                                   onChange={(
                                     event,
@@ -1390,10 +1182,6 @@ export default function Documents() {
                                       event,
                                     )
                                   }
-                                  style={{
-                                    display:
-                                      "none",
-                                  }}
                                 />
                               </label>
 
@@ -1401,26 +1189,18 @@ export default function Documents() {
 
                               <button
                                 type="button"
+                                className="documents-action-button delete"
+                                disabled={
+                                  busy ||
+                                  uploading ||
+                                  savingEdit
+                                }
                                 onClick={() =>
                                   handleDeleteDocument(
                                     documentItem,
                                   )
                                 }
-                                disabled={
-                                  deletingDocumentId ===
-                                  documentItem.id
-                                }
-                                style={{
-                                  ...styles.deleteButton,
-
-                                  opacity:
-                                    deletingDocumentId ===
-                                    documentItem.id
-                                      ? 0.6
-                                      : 1,
-                                }}
                               >
-                                🗑️{" "}
                                 {deletingDocumentId ===
                                 documentItem.id
                                   ? "Deleting..."
@@ -1436,64 +1216,68 @@ export default function Documents() {
               </table>
             </div>
           )}
-        </div>
-      </div>
+        </section>
 
-      {/* =================================================
-          EDIT MODAL
-      ================================================= */}
+        {/* SECURITY INFORMATION */}
+
+        <section className="documents-security-info">
+          <div className="documents-security-icon">
+            ✓
+          </div>
+
+          <div>
+            <strong>
+              Role-based document protection
+            </strong>
+
+            <p>
+              Access permissions are enforced
+              by the backend before document
+              content is retrieved for the RAG
+              pipeline. Gemini only receives
+              document context that the
+              authenticated user's role is
+              authorized to access.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      {/* EDIT MODAL */}
 
       {editingDocument && (
-        <div
-          style={
-            styles.modalOverlay
-          }
-        >
-          <div
-            style={
-              styles.modal
-            }
-          >
+        <div className="documents-modal-overlay">
 
-            <div
-              style={
-                styles.modalHeader
-              }
-            >
+          <div className="documents-modal">
+
+            <div className="documents-modal-header">
               <div>
-                <h2
-                  style={
-                    styles.modalTitle
-                  }
-                >
+                <p className="documents-section-label">
+                  DOCUMENT SETTINGS
+                </p>
+
+                <h2>
                   Edit Document
                 </h2>
 
-                <p
-                  style={
-                    styles.helpText
-                  }
-                >
-                  Update document
-                  metadata and
-                  access permissions.
+                <p>
+                  Update metadata and access
+                  permissions.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={
-                  cancelEdit
-                }
-                style={
-                  styles.closeButton
-                }
+                className="documents-modal-close"
+                onClick={cancelEdit}
+                disabled={savingEdit}
               >
-                ✕
+                ×
               </button>
             </div>
 
             <form
+              className="documents-form"
               onSubmit={
                 handleUpdateDocument
               }
@@ -1501,113 +1285,67 @@ export default function Documents() {
 
               {/* EDIT TITLE */}
 
-              <div
-                style={
-                  styles.formGroup
-                }
-              >
-                <label
-                  style={
-                    styles.label
-                  }
-                >
+              <div className="documents-form-group">
+                <label htmlFor="edit-document-title">
                   Document Title
                 </label>
 
                 <input
+                  id="edit-document-title"
                   type="text"
-                  value={
-                    editTitle
-                  }
-                  onChange={(
-                    event,
-                  ) =>
+                  value={editTitle}
+                  onChange={(event) =>
                     setEditTitle(
-                      event.target
-                        .value,
+                      event.target.value,
                     )
                   }
                   maxLength={200}
-                  style={
-                    styles.input
-                  }
                 />
               </div>
 
               {/* EDIT DEPARTMENT */}
 
-              <div
-                style={
-                  styles.formGroup
-                }
-              >
-                <label
-                  style={
-                    styles.label
-                  }
-                >
+              <div className="documents-form-group">
+                <label htmlFor="edit-document-department">
                   Department
                 </label>
 
                 <input
+                  id="edit-document-department"
                   type="text"
-                  value={
-                    editDepartment
-                  }
-                  onChange={(
-                    event,
-                  ) =>
+                  value={editDepartment}
+                  onChange={(event) =>
                     setEditDepartment(
-                      event.target
-                        .value,
+                      event.target.value,
                     )
                   }
                   maxLength={100}
-                  style={
-                    styles.input
-                  }
                 />
               </div>
 
               {/* EDIT ROLES */}
 
-              <div
-                style={
-                  styles.formGroup
-                }
-              >
-                <label
-                  style={
-                    styles.label
-                  }
-                >
+              <div className="documents-form-group">
+                <label>
                   Allowed Roles
                 </label>
 
-                <p
-                  style={
-                    styles.helpText
-                  }
-                >
-                  Select which roles
-                  can retrieve
-                  information from
-                  this document.
+                <p className="documents-help">
+                  Select which roles can retrieve
+                  information from this document.
                 </p>
 
-                <div
-                  style={
-                    styles.rolesContainer
-                  }
-                >
+                <div className="documents-role-options">
                   {AVAILABLE_ROLES.map(
                     (role) => (
                       <label
-                        key={
-                          role.value
-                        }
-                        style={
-                          styles.checkboxLabel
+                        key={role.value}
+                        className={
+                          editAllowedRoles.includes(
+                            role.value,
+                          )
+                            ? "documents-role-option selected"
+                            : "documents-role-option"
                         }
                       >
                         <input
@@ -1623,9 +1361,7 @@ export default function Documents() {
                         />
 
                         <span>
-                          {
-                            role.label
-                          }
+                          {role.label}
                         </span>
                       </label>
                     ),
@@ -1633,40 +1369,22 @@ export default function Documents() {
                 </div>
               </div>
 
-              {/* MODAL BUTTONS */}
+              {/* MODAL ACTIONS */}
 
-              <div
-                style={
-                  styles.modalButtons
-                }
-              >
+              <div className="documents-modal-actions">
                 <button
                   type="button"
-                  onClick={
-                    cancelEdit
-                  }
-                  disabled={
-                    savingEdit
-                  }
-                  style={
-                    styles.cancelButton
-                  }
+                  className="documents-secondary-button"
+                  onClick={cancelEdit}
+                  disabled={savingEdit}
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  disabled={
-                    savingEdit
-                  }
-                  style={{
-                    ...styles.uploadButton,
-                    opacity:
-                      savingEdit
-                        ? 0.7
-                        : 1,
-                  }}
+                  className="documents-primary-button"
+                  disabled={savingEdit}
                 >
                   {savingEdit
                     ? "Saving..."
@@ -1677,383 +1395,6 @@ export default function Documents() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }
-
-/* =====================================================
-   STYLES
-===================================================== */
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    padding: "40px 20px",
-    background: "#f5f7fb",
-    color: "#1f2937",
-  },
-
-  container: {
-    maxWidth: "1400px",
-    margin: "0 auto",
-  },
-
-  card: {
-    background: "#ffffff",
-    borderRadius: "12px",
-    padding: "28px",
-    marginBottom: "24px",
-    boxShadow:
-      "0 4px 18px rgba(0, 0, 0, 0.06)",
-  },
-
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "20px",
-    marginBottom: "24px",
-  },
-
-  heading: {
-    margin: 0,
-    fontSize: "30px",
-  },
-
-  subtitle: {
-    marginTop: "8px",
-    color: "#6b7280",
-  },
-
-  userInfo: {
-    color: "#6b7280",
-    fontSize: "14px",
-  },
-
-  headerButtons: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  cardTitle: {
-    marginTop: 0,
-    marginBottom: "18px",
-  },
-
-  formGroup: {
-    marginBottom: "22px",
-  },
-
-  label: {
-    display: "block",
-    fontWeight: "600",
-    marginBottom: "8px",
-  },
-
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "12px",
-    border:
-      "1px solid #d1d5db",
-    borderRadius: "8px",
-    fontSize: "15px",
-  },
-
-  fileInput: {
-    width: "100%",
-    padding: "10px",
-    border:
-      "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-  },
-
-  fileInfo: {
-    fontSize: "14px",
-    color: "#4b5563",
-  },
-
-  fileSize: {
-    color: "#6b7280",
-    fontSize: "12px",
-  },
-
-  helpText: {
-    color: "#6b7280",
-    fontSize: "14px",
-  },
-
-  rolesContainer: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "16px",
-    marginTop: "12px",
-  },
-
-  checkboxLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    cursor: "pointer",
-  },
-
-  uploadButton: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "12px 22px",
-    background: "#2563eb",
-    color: "#ffffff",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-
-  secondaryButton: {
-    display: "inline-block",
-    padding: "10px 16px",
-    borderRadius: "8px",
-    background: "#e5e7eb",
-    color: "#111827",
-    textDecoration: "none",
-  },
-
-  logoutButton: {
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: "8px",
-    background: "#dc2626",
-    color: "#ffffff",
-    cursor: "pointer",
-  },
-
-  refreshButton: {
-    border: "none",
-    padding: "9px 15px",
-    borderRadius: "8px",
-    background: "#e5e7eb",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-
-  error: {
-    background: "#fee2e2",
-    color: "#991b1b",
-    padding: "14px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-  },
-
-  success: {
-    background: "#dcfce7",
-    color: "#166534",
-    padding: "14px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-  },
-
-  documentsHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: "10px",
-  },
-
-  documentCount: {
-    display: "inline-block",
-    marginBottom: "20px",
-    padding: "6px 12px",
-    borderRadius: "999px",
-    background: "#eff6ff",
-    color: "#1d4ed8",
-    fontSize: "13px",
-    fontWeight: "600",
-  },
-
-  empty: {
-    padding: "30px",
-    textAlign: "center",
-    color: "#6b7280",
-    background: "#f9fafb",
-    borderRadius: "8px",
-  },
-
-  tableWrapper: {
-    overflowX: "auto",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "14px",
-  },
-
-  th: {
-    textAlign: "left",
-    padding: "12px",
-    borderBottom:
-      "2px solid #e5e7eb",
-    background: "#f9fafb",
-    whiteSpace: "nowrap",
-  },
-
-  td: {
-    padding: "12px",
-    borderBottom:
-      "1px solid #e5e7eb",
-    verticalAlign: "top",
-  },
-
-  roleList: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "5px",
-  },
-
-  roleBadge: {
-    background: "#eef2ff",
-    color: "#3730a3",
-    borderRadius: "999px",
-    padding: "3px 8px",
-    fontSize: "12px",
-  },
-
-  statusBadge: {
-    display: "inline-block",
-    background: "#fef3c7",
-    color: "#92400e",
-    borderRadius: "999px",
-    padding: "4px 9px",
-    fontSize: "12px",
-    fontWeight: "600",
-  },
-
-  readyStatus: {
-    background: "#dcfce7",
-    color: "#166534",
-  },
-
-  failedStatus: {
-    background: "#fee2e2",
-    color: "#991b1b",
-  },
-
-  actionsContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "7px",
-    minWidth: "125px",
-  },
-
-  editButton: {
-    border: "none",
-    borderRadius: "6px",
-    padding: "8px 10px",
-    background: "#dbeafe",
-    color: "#1d4ed8",
-    cursor: "pointer",
-    fontWeight: "600",
-    fontSize: "12px",
-  },
-
-  replaceButton: {
-    display: "block",
-    borderRadius: "6px",
-    padding: "8px 10px",
-    background: "#ede9fe",
-    color: "#6d28d9",
-    cursor: "pointer",
-    fontWeight: "600",
-    fontSize: "12px",
-    textAlign: "center",
-  },
-
-  deleteButton: {
-    border: "none",
-    borderRadius: "6px",
-    padding: "8px 10px",
-    background: "#fee2e2",
-    color: "#b91c1c",
-    cursor: "pointer",
-    fontWeight: "600",
-    fontSize: "12px",
-  },
-
-  linkButton: {
-    display: "inline-block",
-    marginTop: "15px",
-    padding: "10px 16px",
-    borderRadius: "8px",
-    background: "#2563eb",
-    color: "#ffffff",
-    textDecoration: "none",
-  },
-
-  // ===================================================
-  // EDIT MODAL
-  // ===================================================
-
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background:
-      "rgba(0, 0, 0, 0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-    zIndex: 1000,
-  },
-
-  modal: {
-    width: "100%",
-    maxWidth: "600px",
-    maxHeight: "90vh",
-    overflowY: "auto",
-    background: "#ffffff",
-    borderRadius: "14px",
-    padding: "30px",
-    boxShadow:
-      "0 20px 50px rgba(0, 0, 0, 0.2)",
-  },
-
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "20px",
-    marginBottom: "25px",
-  },
-
-  modalTitle: {
-    margin: 0,
-    fontSize: "24px",
-  },
-
-  closeButton: {
-    border: "none",
-    background: "#f3f4f6",
-    color: "#374151",
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-
-  modalButtons: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-    marginTop: "25px",
-  },
-
-  cancelButton: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "12px 20px",
-    background: "#e5e7eb",
-    color: "#111827",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-};

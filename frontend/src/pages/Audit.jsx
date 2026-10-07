@@ -1,3 +1,4 @@
+import AppLayout from "../components/AppLayout";
 import {
   useEffect,
   useState,
@@ -115,7 +116,8 @@ function Audit() {
     user && AUDIT_ROLES.includes(user.role);
 
   return (
-    <main className="audit-page">
+    <AppLayout>
+      <main className="audit-page">
       <section className="audit-container">
         <header className="audit-header">
           <div>
@@ -129,24 +131,6 @@ function Audit() {
               Review authorized RAG activity without
               exposing users&apos; original questions.
             </p>
-          </div>
-
-          <div className="audit-actions">
-            <button
-              className="audit-button secondary"
-              type="button"
-              onClick={() => navigate("/chat")}
-            >
-              Back to chat
-            </button>
-
-            <button
-              className="audit-button danger"
-              type="button"
-              onClick={handleLogout}
-            >
-              Log out
-            </button>
           </div>
         </header>
 
@@ -299,6 +283,7 @@ function Audit() {
           )}
       </section>
     </main>
+    </AppLayout>
   );
 }
 

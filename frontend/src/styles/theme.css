@@ -1,0 +1,133 @@
+/* =========================================================
+   SHARED THEME COLORS
+   Import once in main.jsx:  import "./styles/theme.css";
+   Light is the default. Dark applies when <html data-theme="dark">.
+========================================================= */
+
+:root {
+  color-scheme: light;
+
+  --chat-bg: #f6f7fb;
+  --chat-surface: #ffffff;
+  --chat-border: #e2e5ee;
+  --chat-border-strong: #cfd4e2;
+  --chat-border-hover: #b4bbd0;
+
+  --chat-heading: #111827;
+  --chat-text: #1f2937;
+  --chat-text-soft: #374151;
+  --chat-muted: #6b7280;
+  --chat-placeholder: #9ca3af;
+
+  --chat-accent: #4f46e5;
+  --chat-accent-hover: #4338ca;
+  --chat-accent-text: #4f46e5;
+  --chat-accent-soft: #eef0ff;
+  --chat-accent-soft-hover: #e0e4ff;
+  --chat-accent-border: #c7cbf5;
+  --chat-accent-border-hover: #a9afee;
+  --chat-accent-ring: rgba(79, 70, 229, 0.15);
+
+  --chat-user-text: #1e1b4b;
+  --chat-user-avatar-bg: #e5e7eb;
+  --chat-user-avatar-text: #374151;
+
+  --chat-citation-bg: #eef0f7;
+  --chat-citation-line: #818cf8;
+
+  --chat-disabled-bg: #f3f4f6;
+  --chat-disabled-btn-bg: #e5e7eb;
+  --chat-disabled-text: #9ca3af;
+
+  --chat-error: #b91c1c;
+  --chat-error-bg: #fef2f2;
+  --chat-error-border: #fecaca;
+
+  --chat-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+
+  /* Sidebar / app shell */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e5ee;
+  --sidebar-text: #4b5563;
+  --sidebar-text-strong: #111827;
+  --sidebar-muted: #6b7280;
+  --sidebar-label: #6b7280;
+  --sidebar-icon: #9ca3af;
+  --sidebar-hover: #f3f4f9;
+  --sidebar-active-bg: #eef0ff;
+  --sidebar-active-text: #4f46e5;
+  --sidebar-panel-bg: #f6f7fb;
+  --sidebar-panel-border: #e2e5ee;
+  --sidebar-btn-border: #d5d9e6;
+  --sidebar-btn-hover-border: #b4bbd0;
+  --sidebar-danger-bg: #fee2e2;
+  --sidebar-danger-text: #b91c1c;
+  --sidebar-brand-bg: #4f46e5;
+  --sidebar-status: #16a34a;
+  --sidebar-status-glow: rgba(22, 163, 74, 0.35);
+  --sidebar-role: #15803d;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --chat-bg: #07111f;
+  --chat-surface: #0d1c2c;
+  --chat-border: #20364a;
+  --chat-border-strong: #294158;
+  --chat-border-hover: #38536b;
+
+  --chat-heading: #f2f7fa;
+  --chat-text: #e8f0f7;
+  --chat-text-soft: #dce7ef;
+  --chat-muted: #7f94a8;
+  --chat-placeholder: #62788c;
+
+  --chat-accent: #4f46e5;
+  --chat-accent-hover: #6366f1;
+  --chat-accent-text: #a5b4fc;
+  --chat-accent-soft: #1d2150;
+  --chat-accent-soft-hover: #262d6b;
+  --chat-accent-border: #343a7a;
+  --chat-accent-border-hover: #4a52a8;
+  --chat-accent-ring: rgba(129, 140, 248, 0.25);
+
+  --chat-user-text: #eef0ff;
+  --chat-user-avatar-bg: #1e3a55;
+  --chat-user-avatar-text: #82c7ff;
+
+  --chat-citation-bg: #0a1928;
+  --chat-citation-line: #5b63d6;
+
+  --chat-disabled-bg: #0a1626;
+  --chat-disabled-btn-bg: #172936;
+  --chat-disabled-text: #617588;
+
+  --chat-error: #f39aaa;
+  --chat-error-bg: #2a1820;
+  --chat-error-border: #63313d;
+
+  --chat-shadow: none;
+
+  /* Sidebar / app shell */
+  --sidebar-bg: #0a1626;
+  --sidebar-border: #1b3044;
+  --sidebar-text: #a9b9c8;
+  --sidebar-text-strong: #f2f7fa;
+  --sidebar-muted: #8499ac;
+  --sidebar-label: #7f94a8;
+  --sidebar-icon: #688096;
+  --sidebar-hover: #102337;
+  --sidebar-active-bg: #1d2150;
+  --sidebar-active-text: #a5b4fc;
+  --sidebar-panel-bg: #0d1c2c;
+  --sidebar-panel-border: #1d3447;
+  --sidebar-btn-border: #25394b;
+  --sidebar-btn-hover-border: #385064;
+  --sidebar-danger-bg: #43212a;
+  --sidebar-danger-text: #f58b9e;
+  --sidebar-brand-bg: #4f46e5;
+  --sidebar-status: #35d399;
+  --sidebar-status-glow: rgba(53, 211, 153, 0.45);
+  --sidebar-role: #4fd49c;
+}
